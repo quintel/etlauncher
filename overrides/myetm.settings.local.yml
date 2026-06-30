@@ -1,0 +1,6 @@
+etmodel:
+  uri: http://etmodel.local.energytransitionmodel.com:3001
+etengine:
+  uri: http://etengine.local.energytransitionmodel.com:3000
+collections:
+  uri: http://collections.local.energytransitionmodel.com:3005

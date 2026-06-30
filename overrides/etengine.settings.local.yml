@@ -1,0 +1,7 @@
+identity:
+  issuer: http://myetm.local.energytransitionmodel.com:3002
+  client_id: etm-local-etengine-client
+  client_secret: etm-local-etengine-secret-00000000000
+  client_uri: http://etengine.local.energytransitionmodel.com:3000
+
+collections_url: http://collections.local.energytransitionmodel.com:3005

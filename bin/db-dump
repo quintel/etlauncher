@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Snapshot the local database to git-ignored dumps/ so you can experiment freely
+# and roll back WITHOUT destroying the Docker volume.
+#   ./bin/db-dump            # writes dumps/database-<timestamp>.sql
+#
+# Restore with ./bin/db-restore.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+set -a; . ./.env; set +a
+mkdir -p dumps
+ts="$(date +%Y%m%d-%H%M%S)"
+
+dump_server() {
+  local server="$1"
+  local out="dumps/${server}-${ts}.sql"
+  # Non-system databases only (skip mysql/sys/schema internals so restore is safe).
+  local dbs
+  dbs="$(docker compose exec -T "$server" \
+    mysql -uroot -p"${DB_ROOT_PASSWORD}" -N -e \
+    "SHOW DATABASES" 2>/dev/null \
+    | grep -ivE '^(information_schema|performance_schema|mysql|sys)$' || true)"
+
+  if [ -z "$dbs" ]; then
+    echo "⚠ $server: no application databases found — skipping." >&2
+    return 0
+  fi
+
+  docker compose exec -T "$server" \
+    mysqldump -uroot -p"${DB_ROOT_PASSWORD}" --databases $dbs \
+    > "$out"
+  echo "→ $server → $out ($(echo "$dbs" | tr '\n' ' '))"
+}
+
+dump_server database
+echo "✓ Dumped to dumps/ (keep timestamps; ./bin/db-restore picks the latest)."

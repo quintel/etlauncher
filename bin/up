@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Bring up the full local stack from clean sibling checkouts.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Cached image builds.
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
+# Opt-in local gem development: DEV_GEMS=merit,atlas ./bin/up layers the gems overlay
+# (mounts sibling checkouts; app-boot.sh applies path overrides). See README.
+if [ -n "${DEV_GEMS:-}" ]; then
+  export COMPOSE_FILE="compose.yaml:compose.gems.yaml"
+  echo "DEV_GEMS=${DEV_GEMS} — linking local gem checkouts from /workspace."
+fi
+
+# 1. Environment file
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "Created .env from .env.example"
+fi
+
+# 2. Sibling checkouts must exist next to ETLauncher
+missing=()
+for repo in etengine etmodel multi-year-charts MyETM etsource; do
+  [ -d "../$repo" ] || missing+=("$repo")
+done
+if [ ${#missing[@]} -gt 0 ]; then
+  echo "Missing sibling checkouts: ${missing[*]}" >&2
+  echo "Clone them alongside ETLauncher (see README) and re-run." >&2
+  exit 1
+fi
+
+# 3. Ensure the settings.local.yml overlay targets exist — Docker can't mount a file
+#    over a path that doesn't exist yet. The container shadows it with
+#    overrides/<app>.settings.local.yml; the host file is left untouched.
+for app in etmodel etengine MyETM; do
+  target="../$app/config/settings.local.yml"
+  if [ ! -f "$target" ]; then
+    printf '# Created by ETLauncher so the container override can mount over it.\n' > "$target"
+    echo "Created placeholder $target"
+  fi
+done
+
+# 4. Build images
+docker compose build
+
+# 5. Start the single shared database and wait for it to be healthy. One MySQL
+#    holds every app's DB (mirrors prod's one-MySQL-per-server; see compose.yaml).
+docker compose up -d database
+echo "Waiting for database to be healthy..."
+until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q database)" 2>/dev/null)" = "healthy" ]; do
+  sleep 2
+done
+
+# 6. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
+docker compose run --rm myetm    bundle exec rails db:prepare
+docker compose run --rm etengine bundle exec rails db:prepare
+docker compose run --rm etmodel  bundle exec rails db:prepare
+
+# 7. Seed the deterministic admin + regular user, then the OAuth applications
+#    (OAuth apps are owned by the admin user, so users come first).
+./bin/seed-users
+./bin/seed-oauth
+
+# 8. Start everything
+docker compose up -d
+
+# Load the seeded credentials for the summary below.
+set -a; . ./.env; set +a
+
+cat <<DONE
+
+ETLauncher is up. Open each app at its own *.local.energytransitionmodel.com host
+(shared .local.energytransitionmodel.com cookie parent):
+  ETEngine     http://etengine.local.energytransitionmodel.com:3000
+  ETModel      http://etmodel.local.energytransitionmodel.com:3001
+  MyETM        http://myetm.local.energytransitionmodel.com:3002
+  Collections  http://collections.local.energytransitionmodel.com:3005
+
+If these don't resolve, add to /etc/hosts:
+  127.0.0.1  myetm.local.energytransitionmodel.com etmodel.local.energytransitionmodel.com etengine.local.energytransitionmodel.com collections.local.energytransitionmodel.com
+
+Logins (also in CREDENTIALS.md):
+  admin  ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}
+  user   ${USER_EMAIL} / ${USER_PASSWORD}
+
+Run app commands with 'docker compose exec', e.g.:  docker compose exec etengine bin/rails c
+DONE

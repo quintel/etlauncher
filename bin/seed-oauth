@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Idempotently create the Doorkeeper OAuth applications the apps authenticate as,
+# with fixed dev credentials (from .env) so SSO works with no manual MyETM clicks.
+# Runs inside the MyETM container, which owns the OAuth provider.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# -T pipes the heredoc to `rails runner -` (read script from stdin).
+docker compose run --rm -T myetm bundle exec rails runner - <<'RUBY'
+admin = User.find_by(admin: true) || User.first
+abort("ETLauncher: no MyETM user to own OAuth apps — run db:prepare first") unless admin
+
+# MyETM ties each OAuth app to a Version and identifies it by `uri`
+# (Auth.engine_client/model_client look apps up via Version.default.{engine,model}_url).
+# In development those URLs come from Settings.{etengine,etmodel,collections}.uri.
+version = Version.default   # creates the default "latest" version if absent
+
+scopes = "openid profile email roles scenarios:read scenarios:write scenarios:delete"
+
+# redirect_uri is what each client sends and must match exactly: identity_rails
+# (etmodel/etengine) sends client_uri + /auth/identity/callback; next-auth
+# (collections) uses NEXTAUTH_URL + /api/auth/callback/<provider-id> ("identity").
+apps = [
+  ["ETModel (ETLauncher local)",     ENV.fetch("ETMODEL_CLIENT_ID"),     ENV.fetch("ETMODEL_CLIENT_SECRET"),     "http://etmodel.local.energytransitionmodel.com:3001/auth/identity/callback",        version.model_url],
+  ["ETEngine (ETLauncher local)",    ENV.fetch("ETENGINE_CLIENT_ID"),    ENV.fetch("ETENGINE_CLIENT_SECRET"),    "http://etengine.local.energytransitionmodel.com:3000/auth/identity/callback",       version.engine_url],
+  ["Collections (ETLauncher local)", ENV.fetch("COLLECTIONS_CLIENT_ID"), ENV.fetch("COLLECTIONS_CLIENT_SECRET"), "http://collections.local.energytransitionmodel.com:3005/api/auth/callback/identity", version.collections_url],
+]
+
+apps.each do |name, uid, secret, redirect, uri|
+  app = OAuthApplication.find_or_initialize_by(uid: uid)
+  app.name         = name
+  app.secret       = secret
+  app.redirect_uri = redirect
+  app.uri          = uri
+  app.version      = version
+  app.scopes       = scopes
+  app.confidential = true
+  app.first_party  = true   # trusted first-party app -> Doorkeeper skip_authorization, so the
+                            # silent prompt=none SSO probe returns a code instead of interaction_required
+  app.owner        = admin if app.respond_to?(:owner)   # ownership is enforced in MyETM
+  app.save!
+  puts "  seeded OAuth app: #{name} (#{uid}) uri=#{uri}"
+end
+
+puts "ETLauncher: OAuth applications ready"
+RUBY

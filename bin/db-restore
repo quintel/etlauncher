@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Restore the local database from a dump written by ./bin/db-dump. With no args it
+# restores the LATEST dump; pass a file to be specific.
+#
+#   ./bin/db-restore                                      # latest dump
+#   ./bin/db-restore dumps/database-20260629-120000.sql
+#
+# Restoring overwrites the current contents of the dumped databases (the dump uses
+# CREATE DATABASE ... semantics). It does NOT touch the volume.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+set -a; . ./.env; set +a
+
+restore_file() {
+  local server="$1" file="$2"
+  [ -f "$file" ] || { echo "✗ $server: dump not found: $file" >&2; exit 1; }
+  echo "→ Restoring $server from $file ..."
+  docker compose exec -T "$server" \
+    mysql -uroot -p"${DB_ROOT_PASSWORD}" < "$file"
+  echo "✓ $server restored."
+}
+
+latest_for() {
+  ls -1t "dumps/$1-"*.sql 2>/dev/null | head -1 || true
+}
+
+if [ "$#" -eq 1 ]; then
+  restore_file database "$1"
+  exit 0
+fi
+
+if [ "$#" -ne 0 ]; then
+  echo "Usage: $0 [<dump-file>]   (no args = latest dump in dumps/)" >&2
+  exit 1
+fi
+
+file="$(latest_for database)"
+[ -z "$file" ] && { echo "No dump in dumps/ — run ./bin/db-dump first." >&2; exit 1; }
+restore_file database "$file"

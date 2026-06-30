@@ -1,0 +1,22 @@
+# Opt-in local gem development overlay, applied by bin/up and bin/update
+# when DEV_GEMS is set (e.g. DEV_GEMS=merit,atlas ./bin/up). The state of your
+# local gem checkout is reflected live in the containers
+
+services:
+  etengine:
+    environment:
+      DEV_GEMS: ${DEV_GEMS:-}
+    volumes:
+      - ..:/workspace:cached
+
+  etmodel:
+    environment:
+      DEV_GEMS: ${DEV_GEMS:-}
+    volumes:
+      - ..:/workspace:cached
+
+  myetm:
+    environment:
+      DEV_GEMS: ${DEV_GEMS:-}
+    volumes:
+      - ..:/workspace:cached

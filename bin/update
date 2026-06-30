@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Pick up changes after pulling the app repos: relock Gemfiles and recreate services
+# (gems/yarn deps install at container boot, so no image rebuild day to day). Pass
+# --build only for Dockerfile / system-package changes.
+
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
+if [ -n "${DEV_GEMS:-}" ]; then
+  export COMPOSE_FILE="compose.yaml:compose.gems.yaml"
+fi
+
+BUILD=0
+[ "${1:-}" = "--build" ] && BUILD=1
+
+# Keep each app's Gemfile.lock in sync with its Gemfile so the frozen image build
+# doesn't abort on an un-relocked change. Relocked via the bind-mounted workspace
+# toolchain so users never run bundler themselves.
+echo "→ Ensuring toolchain image..."
+if ! docker image inspect etlauncher-workspace >/dev/null 2>&1; then
+  docker compose build workspace
+fi
+
+relock_if_needed() {
+  local app="$1"
+  local lock="../$app/Gemfile.lock"
+  [ -f "../$app/Gemfile" ] || return 0
+
+  local before=""
+  [ -f "$lock" ] && before=$(shasum "$lock" | awk '{ print $1 }')
+
+  docker compose run --rm --no-deps -T -w "/workspace/$app" workspace bundle lock >/dev/null 2>&1 || {
+    echo "Could not update $app/Gemfile.lock." >&2
+    echo "  If a gem points at a private repo, the toolchain needs git access" >&2
+    echo "  (e.g. SSH agent forwarding into the 'workspace' service)." >&2
+    exit 1
+  }
+
+  [ "$(shasum "$lock" | awk '{ print $1 }')" != "$before" ] && echo "→ $app: Gemfile.lock updated to match Gemfile."
+  return 0
+}
+
+for app in etengine etmodel MyETM; do
+  relock_if_needed "$app"
+done
+
+if [ "$BUILD" -eq 1 ]; then
+  echo "→ Rebuilding images (--build)..."
+  docker compose build etengine etmodel myetm collections
+fi
+
+echo "→ Recreating services (gems/yarn deps install on boot)..."
+docker compose up -d
+
+echo "✓ Stack updated."

@@ -1,0 +1,239 @@
+# ETLauncher — local development orchestration. Source comes from sibling checkouts
+# (../etengine, ../etmodel, ...). See README for the networking/hostname rationale.
+#
+#   cp .env.example .env && ./bin/up
+#
+# Two networks mirror prod: etm-internal (etengine, etmodel, collections, webpacker,
+# workspace + the shared MySQL `database`; ≈ prod's private `default`) and etm-public
+# (myetm + the version apps + `database`, dual-homed; ≈ prod's external nginx-proxy).
+# MyETM is public-only so the bidirectional OIDC handshake resolves. One `database`
+# container holds every app's DB, mirroring prod's one MySQL per server.
+
+name: etlauncher
+
+x-mysql-env: &mysql-env
+  DATABASE_HOST: database
+  MYSQL_USER: root
+  MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
+
+services:
+  database:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_ROOT_HOST: '%'   # allow root from the app containers (default is localhost-only)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      etm-internal:
+        aliases: [database]
+      etm-public:
+        aliases: [database]
+
+  etengine:
+    build:
+      context: ../etengine
+    # app-boot.sh warms gems from a named volume and applies DEV_GEMS, then execs the
+    # server command. entrypoint.sh runs puma (binds 3000).
+    command: ["app-boot.sh", ".docker/entrypoint.sh"]
+    environment:
+      <<: *mysql-env
+      RAILS_ENV: development
+      MYSQL_DATABASE: etengine_development    # db:prepare also creates _queue_ and _cache_
+      ETSOURCE_PATH: /etsource
+      ETM_HOST_PARENT: ${ETM_HOST_PARENT}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../etengine:/app:cached
+      - ../etsource:/etsource:cached
+      - ./overrides/etengine.settings.local.yml:/app/config/settings.local.yml:ro
+      - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
+      - etengine_bundle:/usr/local/bundle
+      - etengine_node_modules:/app/node_modules
+      - etengine_packs:/app/public/packs
+      - etengine_cache:/app/tmp/cache
+      - etengine_storage:/app/storage
+    tmpfs:
+      - /tmp
+      - /app/tmp/pids
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      etm-internal:
+        aliases: [etengine, etengine.local.energytransitionmodel.com]
+      etm-public:
+        aliases: [etengine.local.energytransitionmodel.com]
+
+  etmodel:
+    build:
+      context: ../etmodel
+    command: ["app-boot.sh", "./bin/rails", "s", "-b", "0.0.0.0", "-p", "3001"]
+    environment:
+      <<: *mysql-env
+      RAILS_ENV: development
+      MYSQL_DATABASE: etmodel_development
+      SHAKAPACKER_DEV_SERVER_HOST: webpacker
+      ETM_HOST_PARENT: ${ETM_HOST_PARENT}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../etmodel:/app:cached
+      - ./overrides/etmodel.settings.local.yml:/app/config/settings.local.yml:ro
+      - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
+      - etmodel_bundle:/usr/local/bundle
+      - etmodel_node_modules:/app/node_modules
+      - etmodel_packs:/app/public/packs
+      - etmodel_cache:/app/tmp/cache
+      - etmodel_storage:/app/storage
+    tmpfs:
+      - /tmp
+      - /app/tmp/pids
+    depends_on:
+      database:
+        condition: service_healthy
+      etengine:
+        condition: service_started
+    networks:
+      etm-internal:
+        aliases: [etmodel, etmodel.local.energytransitionmodel.com]
+      etm-public:
+        aliases: [etmodel.local.energytransitionmodel.com]
+
+  webpacker:
+    build:
+      context: ../etmodel
+    # yarn install on boot self-heals the shared etmodel_node_modules volume on a
+    # package.json/yarn.lock change; --frozen-lockfile keeps it deterministic.
+    command: ["app-boot.sh", "sh", "-c", "yarn install --frozen-lockfile && exec ./bin/shakapacker-dev-server"]
+    environment:
+      <<: *mysql-env
+      RAILS_ENV: development
+      MYSQL_DATABASE: etmodel_development
+      SHAKAPACKER_DEV_SERVER_HOST: 0.0.0.0
+    ports:
+      - "3035:3035"
+    volumes:
+      - ../etmodel:/app:cached
+      - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
+      - etmodel_bundle:/usr/local/bundle
+      - etmodel_node_modules:/app/node_modules
+      - etmodel_packs:/app/public/packs
+    networks:
+      - etm-internal
+
+  myetm:
+    build:
+      context: ../MyETM
+    command: ["app-boot.sh", "bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3002"]
+    environment:
+      <<: *mysql-env
+      RAILS_ENV: development
+      MYSQL_DATABASE: my_etm_development
+      ETM_HOST_PARENT: ${ETM_HOST_PARENT}
+      OPENID_ISSUER: ${MYETM_URL}            # pins token `iss`; OIDC endpoints follow request Host
+      SSO_COOKIE_DOMAIN: ${SSO_COOKIE_DOMAIN} # parent domain for the cross-app etm_sso hint cookie
+      # Consumed by bin/seed-oauth (runs inside this container):
+      ETMODEL_CLIENT_ID: ${ETMODEL_CLIENT_ID}
+      ETMODEL_CLIENT_SECRET: ${ETMODEL_CLIENT_SECRET}
+      ETENGINE_CLIENT_ID: ${ETENGINE_CLIENT_ID}
+      ETENGINE_CLIENT_SECRET: ${ETENGINE_CLIENT_SECRET}
+      COLLECTIONS_CLIENT_ID: ${COLLECTIONS_CLIENT_ID}
+      COLLECTIONS_CLIENT_SECRET: ${COLLECTIONS_CLIENT_SECRET}
+      # Consumed by bin/seed-users (runs inside this container):
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      USER_EMAIL: ${USER_EMAIL}
+      USER_PASSWORD: ${USER_PASSWORD}
+    ports:
+      - "3002:3002"
+    volumes:
+      - ../MyETM:/app:cached
+      - ./overrides/myetm.settings.local.yml:/app/config/settings.local.yml:ro
+      - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
+      - myetm_bundle:/usr/local/bundle
+      - myetm_cache:/app/tmp/cache
+      - myetm_storage:/app/storage
+    tmpfs:
+      - /tmp
+      - /app/tmp/pids
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      etm-public:
+        aliases: [myetm, myetm.local.energytransitionmodel.com]
+
+  collections:
+    image: node:20-alpine
+    working_dir: /app
+    # next dev reads NEXT_PUBLIC_* at runtime, so a URL change needs no rebuild.
+    command: sh -c "yarn install --frozen-lockfile && yarn dev -p 3005 -H 0.0.0.0"
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_ETENGINE_URL: ${ETENGINE_URL}
+      NEXT_PUBLIC_ETMODEL_URL: ${ETMODEL_URL}
+      NEXT_PUBLIC_MYETM_URL: ${MYETM_URL}
+      NEXTAUTH_URL: ${COLLECTIONS_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      AUTH_CLIENT_ID: ${COLLECTIONS_CLIENT_ID}
+      AUTH_CLIENT_SECRET: ${COLLECTIONS_CLIENT_SECRET}
+    ports:
+      - "3005:3005"
+    volumes:
+      - ../multi-year-charts:/app:cached
+      - collections_node_modules:/app/node_modules
+    depends_on:
+      myetm:
+        condition: service_started
+      etengine:
+        condition: service_started
+    networks:
+      etm-internal:
+        aliases: [collections, collections.local.energytransitionmodel.com]
+      etm-public:
+        aliases: [collections.local.energytransitionmodel.com]
+
+  # Managed dev shell — the dev-container target. Toolchain only; run app
+  # commands against the services (e.g. `docker compose exec etengine bin/rails c`).
+  workspace:
+    build:
+      context: ./devshell
+    command: sleep infinity
+    volumes:
+      - ..:/workspace:cached                 # parent dir = all sibling repos + ETLauncher
+    networks:
+      - etm-internal
+      - etm-public
+
+networks:
+  etm-internal:
+    driver: bridge
+  etm-public:
+    driver: bridge
+
+volumes:
+  db_data:
+  etengine_bundle:
+  etengine_node_modules:
+  etengine_packs:
+  etengine_cache:
+  etengine_storage:
+  etmodel_bundle:
+  etmodel_node_modules:
+  etmodel_packs:
+  etmodel_cache:
+  etmodel_storage:
+  myetm_bundle:
+  myetm_cache:
+  myetm_storage:
+  collections_node_modules:

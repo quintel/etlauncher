@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Idempotently create a deterministic admin + regular MyETM user with fixed dev
+# credentials (from .env). Runs inside the MyETM container.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+docker compose run --rm -T myetm bundle exec rails runner - <<'RUBY'
+users = [
+  { email: ENV.fetch("ADMIN_EMAIL"), password: ENV.fetch("ADMIN_PASSWORD"), admin: true,  name: "Seeded Admin" },
+  { email: ENV.fetch("USER_EMAIL"),  password: ENV.fetch("USER_PASSWORD"),  admin: false, name: "Seeded User" },
+]
+
+users.each do |attrs|
+  user = User.find_or_initialize_by(email: attrs[:email])
+  user.name     = attrs[:name]
+  user.admin    = attrs[:admin]
+  user.password = attrs[:password]
+  # MyETM's User has Devise :confirmable; skip it so the user can log in at once.
+  user.skip_confirmation! if user.respond_to?(:skip_confirmation!)
+  user.save!
+  puts "  seeded #{attrs[:admin] ? 'admin' : 'user '}: #{attrs[:email]}"
+end
+
+puts "ETLauncher: users ready"
+RUBY
