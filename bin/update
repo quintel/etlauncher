@@ -9,9 +9,16 @@ cd "$(dirname "$0")/.."
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 
+# Compose overlays — keep in sync with bin/up.
+COMPOSE_FILE="compose.yaml"
 if [ -n "${DEV_GEMS:-}" ]; then
-  export COMPOSE_FILE="compose.yaml:compose.gems.yaml"
+  COMPOSE_FILE="${COMPOSE_FILE}:compose.gems.yaml"
 fi
+# COLLECTIONS_PROD=1 ./bin/update --build rebuilds Collections' production image.
+if [ -n "${COLLECTIONS_PROD:-}" ]; then
+  COMPOSE_FILE="${COMPOSE_FILE}:compose.collections-prod.yaml"
+fi
+export COMPOSE_FILE
 
 BUILD=0
 [ "${1:-}" = "--build" ] && BUILD=1

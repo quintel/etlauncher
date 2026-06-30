@@ -1,0 +1,28 @@
+# Prod-mirror overlay for Collections (multi-year-charts). Opt in with
+# COLLECTIONS_PROD=1 ./bin/up — layered onto compose.yaml via COMPOSE_FILE.
+#
+# Runs Collections the way the Docker deploy will: a built image (next build +
+# standalone `node server.js`) instead of `next dev`. Trade-off: no hot reload, and
+# NEXT_PUBLIC_* URLs are baked at BUILD time — change them, then ./bin/update --build.
+#
+# Uses Compose `!reset` / `!override` tags to drop the dev command and the source
+# bind mount inherited from the base service (requires Compose v2.24+).
+
+services:
+  collections:
+    # Distinct tag so the build does not clobber the node:20-alpine base image.
+    image: etm-collections:local-prod
+    build:
+      context: ../multi-year-charts
+      args:
+        # Inlined into the client bundle at build time (see multi-year-charts/Dockerfile).
+        NEXT_PUBLIC_ETENGINE_URL: ${ETENGINE_URL}
+        NEXT_PUBLIC_ETMODEL_URL: ${ETMODEL_URL}
+        NEXT_PUBLIC_MYETM_URL: ${MYETM_URL}
+        NEXT_PUBLIC_SENTRY_RELEASE: ${COLLECTIONS_SENTRY_RELEASE:-local}
+    # Drop the base `next dev` command so the image's CMD (node server.js) runs.
+    command: !reset null
+    # Drop the source + node_modules bind mounts so the built image is not shadowed.
+    volumes: !override []
+    environment:
+      NODE_ENV: production

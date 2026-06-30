@@ -156,6 +156,30 @@ Notes:
 - A gem only overrides in apps that actually declare it (e.g. `identity` applies to
   etengine + etmodel; `merit`/`atlas`/`fever`/`refinery`/`turbine` to etengine).
 
+### Running Collections as its production image (COLLECTIONS_PROD)
+
+By default Collections runs `next dev` for instant hot reload. To instead run it the
+way the Docker deploy will — built from `../multi-year-charts/Dockerfile` (`next build`
++ standalone `node server.js`) — opt in per run:
+
+```sh
+COLLECTIONS_PROD=1 ./bin/up
+```
+
+This layers `compose.collections-prod.yaml` over the base compose file. Use it to
+verify a change behaves under a production build before deploying.
+
+Notes:
+- **No hot reload.** The image is built once; code changes need a rebuild:
+  `COLLECTIONS_PROD=1 ./bin/update --build`.
+- **`NEXT_PUBLIC_*` URLs are baked in at build time**, not read at runtime (Next inlines
+  them into the client bundle). The overlay passes them as build args from your `.env`
+  (`ETENGINE_URL`, `ETMODEL_URL`, `MYETM_URL`). Change a URL → rebuild. This is the
+  key difference from the `next dev` default and why a Docker deploy rebuilds per
+  environment
+- Server-only secrets (`NEXTAUTH_SECRET`, `AUTH_CLIENT_SECRET`, …) stay runtime env, so
+  they do **not** require a rebuild.
+
 ### Dev container / workspace shell
 
 The `workspace` service is the central toolchain — Ruby, Node, yarn, Python, uv,
