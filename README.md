@@ -40,7 +40,7 @@ This will create a directory with the following structure:
 ├── etmodel/
 ├── etsource/
 ├── multi-year-charts/
-├── MyETM/
+├── my-etm/
 ├── ETLauncher/  ← this repo
 └── Gems/        ← gems (only needed for local dev with DEV_GEMS)
     ├── merit/

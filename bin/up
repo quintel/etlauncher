@@ -32,7 +32,7 @@ fi
 
 # 2. Sibling checkouts must exist next to ETLauncher
 missing=()
-for repo in etengine etmodel multi-year-charts MyETM etsource; do
+for repo in etengine etmodel multi-year-charts my-etm etsource; do
   [ -d "../$repo" ] || missing+=("$repo")
 done
 if [ ${#missing[@]} -gt 0 ]; then
@@ -44,7 +44,7 @@ fi
 # 3. Ensure the settings.local.yml overlay targets exist — Docker can't mount a file
 #    over a path that doesn't exist yet. The container shadows it with
 #    overrides/<app>.settings.local.yml; the host file is left untouched.
-for app in etmodel etengine MyETM; do
+for app in etmodel etengine my-etm; do
   target="../$app/config/settings.local.yml"
   if [ ! -f "$target" ]; then
     printf '# Created by ETLauncher so the container override can mount over it.\n' > "$target"
@@ -79,16 +79,21 @@ done
 # 8. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
 #    Wrap in app-boot.sh so a Gemfile delta (the bundle volume can lag a rebuilt image)
 #    is installed before db:prepare — `run` drops the service's app-boot.sh command.
-docker compose run --rm myetm    app-boot.sh bundle exec rails db:prepare
+docker compose run --rm my-etm    app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etengine app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
 
-# 9. Seed the deterministic admin + regular user, then the OAuth applications
+# 7. Build MyETM's Tailwind CSS. Its container only runs `rails server` (no
+#    `bin/dev`/Procfile.dev watcher), so app/assets/builds/tailwind.css never gets
+#    generated otherwise and every page 500s with "asset tailwind.css is not present".
+docker compose run --rm my-etm app-boot.sh bundle exec rails tailwindcss:build
+
+# 8. Seed the deterministic admin + regular user, then the OAuth applications
 #    (OAuth apps are owned by the admin user, so users come first).
 ./bin/seed-users
 ./bin/seed-oauth
 
-# 10. Start everything
+# 9. Start everything
 docker compose up -d
 
 # Load the seeded credentials for the summary below.

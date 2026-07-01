@@ -133,7 +133,7 @@ services:
 
   myetm:
     build:
-      context: ../MyETM
+      context: ../my-etm
     command: ["app-boot.sh", "bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3002"]
     environment:
       <<: *mysql-env
@@ -157,7 +157,7 @@ services:
     ports:
       - "3002:3002"
     volumes:
-      - ../MyETM:/app:cached
+      - ../my-etm:/app:cached
       - ./overrides/myetm.settings.local.yml:/app/config/settings.local.yml:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - myetm_bundle:/usr/local/bundle
