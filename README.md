@@ -10,33 +10,72 @@ The only requirements are **Docker** and (optionally) **VS Code**.
 
 ETLauncher orchestrates the app repos from sibling directories — it does not
 contain them. Clone everything under one parent:
+```
+git clone git@github.com:quintel/etengine.git
+git clone git@github.com:quintel/etmodel.git
+git clone git@github.com:quintel/etsource.git
+git clone git@github.com:quintel/multi-year-charts.git
+git clone git@github.com:quintel/myetm.git
+git clone git@github.com:quintel/ETLauncher.git
+```
 
+Optionally for local dev, create a Gems subfolder and clone any necessary gems there:
+```
+mkdir Gems && cd Gems
+git clone git@github.com:quintel/merit.git
+git clone git@github.com:quintel/atlas.git
+git clone git@github.com:quintel/fever.git
+git clone git@github.com:quintel/rubel.git
+git clone git@github.com:quintel/osmosis.git
+git clone git@github.com:quintel/refinery.git
+git clone git@github.com:quintel/turbine.git
+git clone git@github.com:quintel/etplugin.git
+git clone git@github.com:quintel/identity_rails.git
+```
+
+This will create a directory with the following structure:
 ```
 ~/Quintel/
 ├── etengine/
 ├── etmodel/
+├── etsource/
 ├── multi-year-charts/
 ├── MyETM/
-├── etsource/
-├── merit/ atlas/ fever/ refinery/ turbine/ identity_rails/   ← gems (only needed for local dev with DEV_GEMS)
-└── ETLauncher/                                               ← this repo
+├── ETLauncher/  ← this repo
+└── Gems/        ← gems (only needed for local dev with DEV_GEMS)
+    ├── merit/
+    ├── atlas/
+    ├── fever/
+    ├── rubel/
+    ├── osmosis/
+    ├── refinery/
+    ├── turbine/
+    ├── etplugin/
+    └── identity_rails/   
 ```
 
 ## Quick start
+
+We need to add the hosts to `/etc/hosts` (each name resolves to loopback for the browser;
+the same name is a Docker network alias inside the stack):
+
+```
+127.0.0.1  myetm.local.energytransitionmodel.com
+127.0.0.1  etmodel.local.energytransitionmodel.com
+127.0.0.1  etengine.local.energytransitionmodel.com
+127.0.0.1  collections.local.energytransitionmodel.com
+```
+
+Docker [desktop client](https://www.docker.com/products/docker-desktop/) must be runing beforehand. 
+
+So that we can start everything with:
 
 ```sh
 cd ETLauncher
 ./bin/up                 # build, create DBs, seed OAuth apps, start everything
 ```
 
-First add the hosts to `/etc/hosts` (each name resolves to loopback for the browser;
-the same name is a Docker network alias inside the stack):
-
-```
-127.0.0.1  myetm.local.energytransitionmodel.com etmodel.local.energytransitionmodel.com etengine.local.energytransitionmodel.com collections.local.energytransitionmodel.com
-```
-
-Then:
+Then, you can open each app at its **own `*.local.energytransitionmodel.com` host**:
 
 | App | URL |
 |-----|-----|
@@ -44,8 +83,6 @@ Then:
 | ETModel | http://etmodel.local.energytransitionmodel.com:3001 |
 | MyETM | http://myetm.local.energytransitionmodel.com:3002 |
 | Collections | http://collections.local.energytransitionmodel.com:3005 |
-
-Open each app at its **own `*.local.energytransitionmodel.com` host** (above)
 
 **Logins** (seeded, dev-only — see [`CREDENTIALS.md`](CREDENTIALS.md), also printed by
 `./bin/up`): admin `admin@etm.local` / `etm-admin`, regular user
