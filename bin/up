@@ -88,12 +88,18 @@ docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
 #    generated otherwise and every page 500s with "asset tailwind.css is not present".
 docker compose run --rm my-etm app-boot.sh bundle exec rails tailwindcss:build
 
-# 8. Seed the deterministic admin + regular user, then the OAuth applications
+# 8. Precompile ETModel's JS packs. There's no persistent webpack-dev-server
+#    container (compile: true in config/shakapacker.yml compiles packs on demand
+#    per-request instead) — this just avoids the first real request in the browser
+#    paying that compile time.
+docker compose run --rm etmodel app-boot.sh sh -c "yarn install --frozen-lockfile && bin/shakapacker"
+
+# 9. Seed the deterministic admin + regular user, then the OAuth applications
 #    (OAuth apps are owned by the admin user, so users come first).
 ./bin/seed-users
 ./bin/seed-oauth
 
-# 9. Start everything
+# 10. Start everything
 docker compose up -d
 
 # Load the seeded credentials for the summary below.

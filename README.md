@@ -154,8 +154,8 @@ Changes to source files propagate automatically — no container restarts needed
   next request (Zeitwerk in development). Restart the service for initializer or
   `settings.yml` changes: `docker compose restart etengine`.
 - **Collections (Next.js):** runs `next dev` — components hot-reload in the browser instantly.
-- **ETModel JS:** the `webpacker` service runs the Shakapacker dev server (port 3035),
-  so JS pack changes recompile and live-reload in the browser.
+- **ETModel JS:** no dev server — `config/shakapacker.yml` has `compile: true`, so packs
+  recompile on the next request. No live-reload; reload the page after a JS change.
 - **ETSource:** switching branches in your `etsource/` checkout is picked up automatically
   by etengine's file watcher; make any request and it reloads from the new branch.
 
@@ -312,10 +312,10 @@ To start completely clean (destroy data, then rebuild and reseed), run
 - **Reset everything (destroys all DB data):** `docker compose down -v && ./bin/up`,
   or from Docker Desktop delete the `etlauncher_db_data` volume (**Volumes** tab) then
   run `./bin/up`.
-- **`webpacker` schema errors after a deps change:** the named `etmodel_node_modules`
+- **ETModel JS schema errors after a deps change:** the named `etmodel_node_modules`
   volume can hold stale packages. Refresh it with
-  `docker compose run --rm --no-deps webpacker yarn install`, then
-  `docker compose up -d --force-recreate webpacker`.
+  `docker compose run --rm --no-deps etmodel yarn install`, then
+  `docker compose up -d --force-recreate etmodel`.
 - **Config overrides:** `overrides/` holds container-correct `settings.local.yml`
   files mounted read-only over each Rails app, so the orchestrated values win
   regardless of any personal `settings.local.yml` in your checkout (your host
