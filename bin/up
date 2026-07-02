@@ -52,10 +52,23 @@ for app in etmodel etengine MyETM; do
   fi
 done
 
-# 4. Build images
+# 4. Free disk space before building. Removes dangling images, stopped containers,
+#    unused networks, and unused build cache. Volumes are never touched (omit -v)
+#    to preserve db_data and bundle caches.
+echo "Pruning unused Docker resources..."
+docker system prune -f
+docker builder prune --keep-storage=2gb -f
+
+# 5. Relock Gemfile.lock for any app whose Gemfile has drifted (e.g. a hand-edited
+#    gem ref) — the image build below runs bundler in frozen mode, which aborts on
+#    a mismatched lockfile otherwise.
+source ./bin/lib-relock.sh
+relock_all
+
+# 6. Build images
 docker compose build
 
-# 5. Start the single shared database and wait for it to be healthy. One MySQL
+# 7. Start the single shared database and wait for it to be healthy. One MySQL
 #    holds every app's DB (mirrors prod's one-MySQL-per-server; see compose.yaml).
 docker compose up -d database
 echo "Waiting for database to be healthy..."
@@ -63,19 +76,19 @@ until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q 
   sleep 2
 done
 
-# 6. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
+# 8. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
 #    Wrap in app-boot.sh so a Gemfile delta (the bundle volume can lag a rebuilt image)
 #    is installed before db:prepare — `run` drops the service's app-boot.sh command.
 docker compose run --rm myetm    app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etengine app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
 
-# 7. Seed the deterministic admin + regular user, then the OAuth applications
+# 9. Seed the deterministic admin + regular user, then the OAuth applications
 #    (OAuth apps are owned by the admin user, so users come first).
 ./bin/seed-users
 ./bin/seed-oauth
 
-# 8. Start everything
+# 10. Start everything
 docker compose up -d
 
 # Load the seeded credentials for the summary below.
