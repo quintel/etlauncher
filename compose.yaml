@@ -112,7 +112,7 @@ services:
       etm-public:
         aliases: [etmodel.local.energytransitionmodel.com]
 
-  myetm:
+  my-etm:
     build:
       context: ../my-etm
     command: ["app-boot.sh", "bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3002"]
@@ -174,7 +174,7 @@ services:
       - ../multi-year-charts:/app:cached
       - collections_node_modules:/app/node_modules
     depends_on:
-      myetm:
+      my-etm:
         condition: service_started
       etengine:
         condition: service_started

@@ -79,7 +79,7 @@ done
 # 8. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
 #    Wrap in app-boot.sh so a Gemfile delta (the bundle volume can lag a rebuilt image)
 #    is installed before db:prepare — `run` drops the service's app-boot.sh command.
-docker compose run --rm my-etm    app-boot.sh bundle exec rails db:prepare
+docker compose run --rm my-etm   app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etengine app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
 

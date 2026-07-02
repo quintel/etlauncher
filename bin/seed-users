@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-docker compose run --rm -T myetm bundle exec rails runner - <<'RUBY'
+docker compose run --rm -T my-etm bundle exec rails runner - <<'RUBY'
 users = [
   { email: ENV.fetch("ADMIN_EMAIL"), password: ENV.fetch("ADMIN_PASSWORD"), admin: true,  name: "Seeded Admin" },
   { email: ENV.fetch("USER_EMAIL"),  password: ENV.fetch("USER_PASSWORD"),  admin: false, name: "Seeded User" },

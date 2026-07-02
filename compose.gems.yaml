@@ -15,7 +15,7 @@ services:
     volumes:
       - ..:/workspace:cached
 
-  myetm:
+  my-etm:
     environment:
       DEV_GEMS: ${DEV_GEMS:-}
     volumes:

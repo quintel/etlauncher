@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # -T pipes the heredoc to `rails runner -` (read script from stdin).
-docker compose run --rm -T myetm bundle exec rails runner - <<'RUBY'
+docker compose run --rm -T my-etm bundle exec rails runner - <<'RUBY'
 admin = User.find_by(admin: true) || User.first
 abort("ETLauncher: no MyETM user to own OAuth apps — run db:prepare first") unless admin
 
