@@ -3,7 +3,7 @@
 #
 #   cp .env.example .env && ./bin/up
 #
-# Two networks mirror prod: etm-internal (etengine, etmodel, collections, webpacker,
+# Two networks mirror prod: etm-internal (etengine, etmodel, collections,
 # workspace + the shared MySQL `database`; ≈ prod's private `default`) and etm-public
 # (myetm + the version apps + `database`, dual-homed; ≈ prod's external nginx-proxy).
 # MyETM is public-only so the bidirectional OIDC handshake resolves. One `database`
@@ -77,12 +77,15 @@ services:
   etmodel:
     build:
       context: ../etmodel
-    command: ["app-boot.sh", "./bin/rails", "s", "-b", "0.0.0.0", "-p", "3001"]
+    # yarn install self-heals the shared etmodel_node_modules volume on a
+    # package.json/yarn.lock change (the volume doesn't auto-refresh from a rebuilt
+    # image); --frozen-lockfile keeps it deterministic. JS packs then compile on
+    # demand per-request (config/shakapacker.yml has compile: true) — no dev server.
+    command: ["app-boot.sh", "sh", "-c", "yarn install --frozen-lockfile && exec ./bin/rails s -b 0.0.0.0 -p 3001"]
     environment:
       <<: *mysql-env
       RAILS_ENV: development
       MYSQL_DATABASE: etmodel_development
-      SHAKAPACKER_DEV_SERVER_HOST: webpacker
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
     ports:
       - "3001:3001"
@@ -109,31 +112,9 @@ services:
       etm-public:
         aliases: [etmodel.local.energytransitionmodel.com]
 
-  webpacker:
-    build:
-      context: ../etmodel
-    # yarn install on boot self-heals the shared etmodel_node_modules volume on a
-    # package.json/yarn.lock change; --frozen-lockfile keeps it deterministic.
-    command: ["app-boot.sh", "sh", "-c", "yarn install --frozen-lockfile && exec ./bin/shakapacker-dev-server"]
-    environment:
-      <<: *mysql-env
-      RAILS_ENV: development
-      MYSQL_DATABASE: etmodel_development
-      SHAKAPACKER_DEV_SERVER_HOST: 0.0.0.0
-    ports:
-      - "3035:3035"
-    volumes:
-      - ../etmodel:/app:cached
-      - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
-      - etmodel_bundle:/usr/local/bundle
-      - etmodel_node_modules:/app/node_modules
-      - etmodel_packs:/app/public/packs
-    networks:
-      - etm-internal
-
   myetm:
     build:
-      context: ../MyETM
+      context: ../my-etm
     command: ["app-boot.sh", "bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3002"]
     environment:
       <<: *mysql-env
@@ -157,7 +138,7 @@ services:
     ports:
       - "3002:3002"
     volumes:
-      - ../MyETM:/app:cached
+      - ../my-etm:/app:cached
       - ./overrides/myetm.settings.local.yml:/app/config/settings.local.yml:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - myetm_bundle:/usr/local/bundle

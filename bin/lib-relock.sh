@@ -32,7 +32,7 @@ relock_if_needed() {
 relock_all() {
   echo "→ Ensuring toolchain image..."
   ensure_workspace_image
-  for app in etengine etmodel MyETM; do
+  for app in etengine etmodel my-etm; do
     relock_if_needed "$app"
   done
 }

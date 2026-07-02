@@ -10,33 +10,72 @@ The only requirements are **Docker** and (optionally) **VS Code**.
 
 ETLauncher orchestrates the app repos from sibling directories — it does not
 contain them. Clone everything under one parent:
+```
+git clone git@github.com:quintel/etengine.git
+git clone git@github.com:quintel/etmodel.git
+git clone git@github.com:quintel/etsource.git
+git clone git@github.com:quintel/multi-year-charts.git
+git clone git@github.com:quintel/myetm.git
+git clone git@github.com:quintel/ETLauncher.git
+```
 
+Optionally for local dev, create a Gems subfolder and clone any necessary gems there:
+```
+mkdir Gems && cd Gems
+git clone git@github.com:quintel/merit.git
+git clone git@github.com:quintel/atlas.git
+git clone git@github.com:quintel/fever.git
+git clone git@github.com:quintel/rubel.git
+git clone git@github.com:quintel/osmosis.git
+git clone git@github.com:quintel/refinery.git
+git clone git@github.com:quintel/turbine.git
+git clone git@github.com:quintel/etplugin.git
+git clone git@github.com:quintel/identity_rails.git
+```
+
+This will create a directory with the following structure:
 ```
 ~/Quintel/
 ├── etengine/
 ├── etmodel/
-├── multi-year-charts/
-├── MyETM/
 ├── etsource/
-├── merit/ atlas/ fever/ refinery/ turbine/ identity_rails/   ← gems (only needed for local dev with DEV_GEMS)
-└── ETLauncher/                                               ← this repo
+├── multi-year-charts/
+├── my-etm/
+├── ETLauncher/  ← this repo
+└── Gems/        ← gems (only needed for local dev with DEV_GEMS)
+    ├── merit/
+    ├── atlas/
+    ├── fever/
+    ├── rubel/
+    ├── osmosis/
+    ├── refinery/
+    ├── turbine/
+    ├── etplugin/
+    └── identity_rails/   
 ```
 
 ## Quick start
+
+We need to add the hosts to `/etc/hosts` (each name resolves to loopback for the browser;
+the same name is a Docker network alias inside the stack):
+
+```
+127.0.0.1  myetm.local.energytransitionmodel.com
+127.0.0.1  etmodel.local.energytransitionmodel.com
+127.0.0.1  etengine.local.energytransitionmodel.com
+127.0.0.1  collections.local.energytransitionmodel.com
+```
+
+Docker [desktop client](https://www.docker.com/products/docker-desktop/) must be runing beforehand. 
+
+So that we can start everything with:
 
 ```sh
 cd ETLauncher
 ./bin/up                 # build, create DBs, seed OAuth apps, start everything
 ```
 
-First add the hosts to `/etc/hosts` (each name resolves to loopback for the browser;
-the same name is a Docker network alias inside the stack):
-
-```
-127.0.0.1  myetm.local.energytransitionmodel.com etmodel.local.energytransitionmodel.com etengine.local.energytransitionmodel.com collections.local.energytransitionmodel.com
-```
-
-Then:
+Then, you can open each app at its **own `*.local.energytransitionmodel.com` host**:
 
 | App | URL |
 |-----|-----|
@@ -44,8 +83,6 @@ Then:
 | ETModel | http://etmodel.local.energytransitionmodel.com:3001 |
 | MyETM | http://myetm.local.energytransitionmodel.com:3002 |
 | Collections | http://collections.local.energytransitionmodel.com:3005 |
-
-Open each app at its **own `*.local.energytransitionmodel.com` host** (above)
 
 **Logins** (seeded, dev-only — see [`CREDENTIALS.md`](CREDENTIALS.md), also printed by
 `./bin/up`): admin `admin@etm.local` / `etm-admin`, regular user
@@ -117,8 +154,8 @@ Changes to source files propagate automatically — no container restarts needed
   next request (Zeitwerk in development). Restart the service for initializer or
   `settings.yml` changes: `docker compose restart etengine`.
 - **Collections (Next.js):** runs `next dev` — components hot-reload in the browser instantly.
-- **ETModel JS:** the `webpacker` service runs the Shakapacker dev server (port 3035),
-  so JS pack changes recompile and live-reload in the browser.
+- **ETModel JS:** no dev server — `config/shakapacker.yml` has `compile: true`, so packs
+  recompile on the next request. No live-reload; reload the page after a JS change.
 - **ETSource:** switching branches in your `etsource/` checkout is picked up automatically
   by etengine's file watcher; make any request and it reloads from the new branch.
 
@@ -275,10 +312,10 @@ To start completely clean (destroy data, then rebuild and reseed), run
 - **Reset everything (destroys all DB data):** `docker compose down -v && ./bin/up`,
   or from Docker Desktop delete the `etlauncher_db_data` volume (**Volumes** tab) then
   run `./bin/up`.
-- **`webpacker` schema errors after a deps change:** the named `etmodel_node_modules`
+- **ETModel JS schema errors after a deps change:** the named `etmodel_node_modules`
   volume can hold stale packages. Refresh it with
-  `docker compose run --rm --no-deps webpacker yarn install`, then
-  `docker compose up -d --force-recreate webpacker`.
+  `docker compose run --rm --no-deps etmodel yarn install`, then
+  `docker compose up -d --force-recreate etmodel`.
 - **Config overrides:** `overrides/` holds container-correct `settings.local.yml`
   files mounted read-only over each Rails app, so the orchestrated values win
   regardless of any personal `settings.local.yml` in your checkout (your host
