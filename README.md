@@ -51,7 +51,21 @@ This will create a directory with the following structure:
     ├── refinery/
     ├── turbine/
     ├── etplugin/
-    └── identity_rails/   
+    └── identity_rails/
+```
+
+Some data sources do not allow the redistribution of their data, in this case this data
+is encripted and etengine will not process this request unless the decryption password
+is placed in a file called `.password` in the ETSource directory, this is optional and
+does not affect Netherlands data:
+```
+~/Quintel/
+├── etsource/
+│   ├── .password   # <- password goes here
+│   ├── carriers
+│   ├── config
+│   ├── datasets
+│   ├── ...
 ```
 
 ## Quick start
@@ -66,7 +80,7 @@ the same name is a Docker network alias inside the stack):
 127.0.0.1  collections.local.energytransitionmodel.com
 ```
 
-Docker [desktop client](https://www.docker.com/products/docker-desktop/) must be runing beforehand. 
+Docker [desktop client](https://www.docker.com/products/docker-desktop/) must be runing beforehand.
 
 So that we can start everything with:
 
