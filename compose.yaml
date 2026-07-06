@@ -122,14 +122,12 @@ services:
       MYSQL_DATABASE: my_etm_development
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       OPENID_ISSUER: ${MYETM_URL}            # pins token `iss`; OIDC endpoints follow request Host
-      SSO_COOKIE_DOMAIN: ${SSO_COOKIE_DOMAIN} # parent domain for the cross-app etm_sso hint cookie
+      SSO_COOKIE_DOMAIN: ${SSO_COOKIE_DOMAIN} # parent domain for the shared etm_session cookie
       # Consumed by bin/seed-oauth (runs inside this container):
       ETMODEL_CLIENT_ID: ${ETMODEL_CLIENT_ID}
       ETMODEL_CLIENT_SECRET: ${ETMODEL_CLIENT_SECRET}
       ETENGINE_CLIENT_ID: ${ETENGINE_CLIENT_ID}
       ETENGINE_CLIENT_SECRET: ${ETENGINE_CLIENT_SECRET}
-      COLLECTIONS_CLIENT_ID: ${COLLECTIONS_CLIENT_ID}
-      COLLECTIONS_CLIENT_SECRET: ${COLLECTIONS_CLIENT_SECRET}
       # Consumed by bin/seed-users (runs inside this container):
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
@@ -164,10 +162,6 @@ services:
       NEXT_PUBLIC_ETENGINE_URL: ${ETENGINE_URL}
       NEXT_PUBLIC_ETMODEL_URL: ${ETMODEL_URL}
       NEXT_PUBLIC_MYETM_URL: ${MYETM_URL}
-      NEXTAUTH_URL: ${COLLECTIONS_URL}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      AUTH_CLIENT_ID: ${COLLECTIONS_CLIENT_ID}
-      AUTH_CLIENT_SECRET: ${COLLECTIONS_CLIENT_SECRET}
     ports:
       - "3005:3005"
     volumes:
