@@ -123,3 +123,11 @@ Logins (also in CREDENTIALS.md):
 
 Run app commands with 'docker compose exec', e.g.:  docker compose exec etengine bin/rails c
 DONE
+
+# Last, so it isn't buried under the build output. The .password file is untracked.
+# A freshly cloned etsource does not have it; without it the stack runs but scenario
+# calculations fail for datasets with encrypted (IEA) energy balances (see README).
+if [ ! -f ../etsource/.password ]; then
+  echo "" >&2
+  echo "WARNING: ../etsource/.password is missing. Some scenario calculations will fail" >&2
+fi

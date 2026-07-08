@@ -20,9 +20,18 @@ services:
         NEXT_PUBLIC_ETMODEL_URL: ${ETMODEL_URL}
         NEXT_PUBLIC_MYETM_URL: ${MYETM_URL}
         NEXT_PUBLIC_SENTRY_RELEASE: ${COLLECTIONS_SENTRY_RELEASE:-local}
+      secrets:
+        - sentry_auth_token
     # Drop the base `next dev` command so the image's CMD (node server.js) runs.
     command: !reset null
     # Drop the source + node_modules bind mounts so the built image is not shadowed.
     volumes: !override []
     environment:
       NODE_ENV: production
+
+# Sentry sourcemap upload token for the image build (see multi-year-charts/Dockerfile).
+# Sourced from SENTRY_AUTH_TOKEN in the environment/.env; empty = upload skipped, which
+# is the normal local case. Real uploads happen in CI, not here.
+secrets:
+  sentry_auth_token:
+    environment: SENTRY_AUTH_TOKEN
