@@ -33,10 +33,14 @@ relock_all
 
 if [ "$BUILD" -eq 1 ]; then
   echo "→ Rebuilding images (--build)..."
-  docker compose build etengine etmodel myetm collections
+  docker compose build etengine etmodel my-etm collections
 fi
 
-echo "→ Recreating services (gems/yarn deps install on boot)..."
-docker compose up -d
+# Force-recreate the app containers so app-boot.sh re-runs. A pulled gem ref / Gemfile.lock
+# or package.json bump lives in the bind-mounted code, not the compose spec.
+echo "→ Recreating app services (gems/yarn deps install on boot)..."
+docker compose up -d --force-recreate etengine etmodel my-etm collections
+
+echo "→ Ensuring remaining services are up..."
 
 echo "✓ Stack updated."
