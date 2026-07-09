@@ -11,11 +11,12 @@ The only requirements are **Docker** and (optionally) **VS Code**.
 ETLauncher orchestrates the app repos from sibling directories — it does not
 contain them. Clone everything under one parent:
 ```
+mkdir ~/Quintel && cd ~/Quintel
 git clone git@github.com:quintel/etengine.git
 git clone git@github.com:quintel/etmodel.git
 git clone git@github.com:quintel/etsource.git
 git clone git@github.com:quintel/multi-year-charts.git
-git clone git@github.com:quintel/myetm.git
+git clone git@github.com:quintel/my-etm.git
 git clone git@github.com:quintel/ETLauncher.git
 ```
 
@@ -74,6 +75,7 @@ We need to add the hosts to `/etc/hosts` (each name resolves to loopback for the
 the same name is a Docker network alias inside the stack):
 
 ```
+# etm-stack (local ETM development)
 127.0.0.1  myetm.local.energytransitionmodel.com
 127.0.0.1  etmodel.local.energytransitionmodel.com
 127.0.0.1  etengine.local.energytransitionmodel.com
@@ -85,7 +87,7 @@ Docker [desktop client](https://www.docker.com/products/docker-desktop/) must be
 So that we can start everything with:
 
 ```sh
-cd ETLauncher
+cd ~/Quintel/ETLauncher
 ./bin/up                 # build, create DBs, seed OAuth apps, start everything
 ```
 
