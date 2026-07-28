@@ -48,6 +48,7 @@ services:
       MYSQL_DATABASE: etengine_development    # db:prepare also creates _queue_ and _cache_
       ETSOURCE_PATH: /etsource
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
+      SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
     ports:
       - "3000:3000"
     volumes:
@@ -87,6 +88,7 @@ services:
       RAILS_ENV: development
       MYSQL_DATABASE: etmodel_development
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
+      SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
     ports:
       - "3001:3001"
     volumes:
@@ -123,6 +125,7 @@ services:
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       OPENID_ISSUER: ${MYETM_URL}            # pins token `iss`; OIDC endpoints follow request Host
       SSO_COOKIE_DOMAIN: ${SSO_COOKIE_DOMAIN} # parent domain for the shared etm_session cookie
+      SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-} # suffixes the session cookie names
       # Consumed by bin/seed-oauth (runs inside this container):
       ETMODEL_CLIENT_ID: ${ETMODEL_CLIENT_ID}
       ETMODEL_CLIENT_SECRET: ${ETMODEL_CLIENT_SECRET}
@@ -162,6 +165,7 @@ services:
       NEXT_PUBLIC_ETENGINE_URL: ${ETENGINE_URL}
       NEXT_PUBLIC_ETMODEL_URL: ${ETMODEL_URL}
       NEXT_PUBLIC_MYETM_URL: ${MYETM_URL}
+      NEXT_PUBLIC_SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
     ports:
       - "3005:3005"
     volumes:
