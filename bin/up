@@ -16,21 +16,48 @@ if [ -n "${DEV_GEMS:-}" ]; then
   echo "DEV_GEMS=${DEV_GEMS} — linking local gem checkouts from /workspace."
 fi
 # COLLECTIONS_PROD=1 ./bin/up runs Collections from its production Docker image (next
-# build + standalone server) instead of `next dev` — mirrors the Docker deploy. No hot
-# reload; rebuild with ./bin/update --build after changing NEXT_PUBLIC_* (baked at build).
+# build + standalone server) instead of `next dev` — the same image staging and
+# production serve. No hot reload; rebuild with ./bin/update --build after changing
+# NEXT_PUBLIC_* (baked at build).
 if [ -n "${COLLECTIONS_PROD:-}" ]; then
   COMPOSE_FILE="${COMPOSE_FILE}:compose.collections-prod.yaml"
   echo "COLLECTIONS_PROD=1 — Collections runs its production image (no hot reload)."
 fi
 export COMPOSE_FILE
 
-# 1. Environment file
+# 1. Environment file. Never overwritten once created, so a variable added to
+#    .env.example later can silently go missing from an existing .env — warn,
+#    don't guess: the value might be intentionally different (e.g. a branch in
+#    progress), so this never auto-merges.
 if [ ! -f .env ]; then
   cp .env.example .env
   echo "Created .env from .env.example"
+else
+  missing_vars=()
+  while IFS='=' read -r key _; do
+    [[ "$key" =~ ^[A-Z_]+$ ]] || continue
+    grep -q "^${key}=" .env || missing_vars+=("$key")
+  done < .env.example
+  if [ ${#missing_vars[@]} -gt 0 ]; then
+    echo "Warning: .env is missing variable(s) present in .env.example: ${missing_vars[*]}" >&2
+    echo "Add them manually (see .env.example) — .env is never overwritten automatically." >&2
+  fi
 fi
 
-# 2. Sibling checkouts must exist next to ETLauncher
+# 2. Ports must be free — fail fast, before the multi-minute build below.
+busy=()
+for port in 3000 3001 3002 3005; do
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && busy+=("$port")
+done
+if [ ${#busy[@]} -gt 0 ]; then
+  echo "Port(s) already in use: ${busy[*]}" >&2
+  echo "Either ETLauncher is already running (nothing to do — see 'Stop / start' in the" >&2
+  echo "README), or something else is listening (e.g. a natively-running ETM). Stop it first." >&2
+  echo "Find what's holding a port: lsof -nP -iTCP:<port> -sTCP:LISTEN" >&2
+  exit 1
+fi
+
+# 3. Sibling checkouts must exist next to ETLauncher
 missing=()
 for repo in etengine etmodel multi-year-charts my-etm etsource; do
   [ -d "../$repo" ] || missing+=("$repo")
@@ -41,7 +68,7 @@ if [ ${#missing[@]} -gt 0 ]; then
   exit 1
 fi
 
-# 3. Ensure the settings.local.yml overlay targets exist — Docker can't mount a file
+# 4. Ensure the settings.local.yml overlay targets exist — Docker can't mount a file
 #    over a path that doesn't exist yet. The container shadows it with
 #    overrides/<app>.settings.local.yml; the host file is left untouched.
 for app in etmodel etengine my-etm; do
@@ -52,23 +79,23 @@ for app in etmodel etengine my-etm; do
   fi
 done
 
-# 4. Free disk space before building. Removes dangling images, stopped containers,
-#    unused networks, and unused build cache. Volumes are never touched (omit -v)
-#    to preserve db_data and bundle caches.
-echo "Pruning unused Docker resources..."
-docker system prune -f
-docker builder prune --keep-storage=2gb -f
+# 5. Report Docker's disk usage, then clean up ETLauncher's own leftovers only. A
+#    machine-wide prune is left to the user: it reaches other projects' containers and
+#    the shared build cache, which is not ETLauncher's to reclaim.
+source ./bin/lib-docker.sh
+report_docker_usage
+prune_etlauncher_resources
 
-# 5. Relock Gemfile.lock for any app whose Gemfile has drifted (e.g. a hand-edited
+# 6. Relock Gemfile.lock for any app whose Gemfile has drifted (e.g. a hand-edited
 #    gem ref) — the image build below runs bundler in frozen mode, which aborts on
 #    a mismatched lockfile otherwise.
 source ./bin/lib-relock.sh
 relock_all
 
-# 6. Build images
+# 7. Build images
 docker compose build
 
-# 7. Start the single shared database and wait for it to be healthy. One MySQL
+# 8. Start the single shared database and wait for it to be healthy. One MySQL
 #    holds every app's DB (mirrors prod's one-MySQL-per-server; see compose.yaml).
 docker compose up -d database
 echo "Waiting for database to be healthy..."
@@ -76,30 +103,30 @@ until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q 
   sleep 2
 done
 
-# 8. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
+# 9. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
 #    Wrap in app-boot.sh so a Gemfile delta (the bundle volume can lag a rebuilt image)
 #    is installed before db:prepare — `run` drops the service's app-boot.sh command.
 docker compose run --rm my-etm   app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etengine app-boot.sh bundle exec rails db:prepare
 docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
 
-# 7. Build MyETM's Tailwind CSS. Its container only runs `rails server` (no
-#    `bin/dev`/Procfile.dev watcher), so app/assets/builds/tailwind.css never gets
-#    generated otherwise and every page 500s with "asset tailwind.css is not present".
+# 10. Build MyETM's Tailwind CSS. Its container only runs `rails server` (no
+#     `bin/dev`/Procfile.dev watcher), so app/assets/builds/tailwind.css never gets
+#     generated otherwise and every page 500s with "asset tailwind.css is not present".
 docker compose run --rm my-etm app-boot.sh bundle exec rails tailwindcss:build
 
-# 8. Precompile ETModel's JS packs. There's no persistent webpack-dev-server
-#    container (compile: true in config/shakapacker.yml compiles packs on demand
-#    per-request instead) — this just avoids the first real request in the browser
-#    paying that compile time.
+# 11. Precompile ETModel's JS packs. There's no persistent webpack-dev-server
+#     container (compile: true in config/shakapacker.yml compiles packs on demand
+#     per-request instead) — this just avoids the first real request in the browser
+#     paying that compile time.
 docker compose run --rm etmodel app-boot.sh sh -c "yarn install --frozen-lockfile && bin/shakapacker"
 
-# 9. Seed the deterministic admin + regular user, then the OAuth applications
-#    (OAuth apps are owned by the admin user, so users come first).
+# 12. Seed the deterministic admin + regular user, then the OAuth applications
+#     (OAuth apps are owned by the admin user, so users come first).
 ./bin/seed-users
 ./bin/seed-oauth
 
-# 10. Start everything
+# 13. Start everything
 docker compose up -d
 
 # Load the seeded credentials for the summary below.
