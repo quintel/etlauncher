@@ -1,12 +1,9 @@
 # Prod-mirror overlay for Collections (multi-year-charts). Opt in with
 # COLLECTIONS_PROD=1 ./bin/up — layered onto compose.yaml via COMPOSE_FILE.
 #
-# Runs Collections the way the Docker deploy will: a built image (next build +
-# standalone `node server.js`) instead of `next dev`. Trade-off: no hot reload, and
-# NEXT_PUBLIC_* URLs are baked at BUILD time — change them, then ./bin/update --build.
-#
-# Uses Compose `!reset` / `!override` tags to drop the dev command and the source
-# bind mount inherited from the base service (requires Compose v2.24+).
+# Runs Collections the way it is deployed: a built image (next build +
+# standalone `node server.js`) instead of `next dev`. The trade-off is no hot reload,
+# and NEXT_PUBLIC_* URLs are baked at BUILD time — change them, then ./bin/update --build.
 
 services:
   collections:

@@ -20,10 +20,11 @@ if [ -n "${COLLECTIONS_PROD:-}" ]; then
 fi
 export COMPOSE_FILE
 
-# Free disk space before relocking / rebuilding. Volumes are preserved (omit -v).
-echo "Pruning unused Docker resources..."
-docker system prune -f
-docker builder prune --keep-storage=2gb -f
+# Report disk usage, then clean up ETLauncher's own leftovers only — this runs on every
+# pull, so a machine-wide prune here would repeatedly wipe other projects' build cache.
+source ./bin/lib-docker.sh
+report_docker_usage
+prune_etlauncher_resources
 
 BUILD=0
 [ "${1:-}" = "--build" ] && BUILD=1
@@ -42,5 +43,6 @@ echo "→ Recreating app services (gems/yarn deps install on boot)..."
 docker compose up -d --force-recreate etengine etmodel my-etm collections
 
 echo "→ Ensuring remaining services are up..."
+docker compose up -d
 
 echo "✓ Stack updated."
