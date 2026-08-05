@@ -21,7 +21,7 @@ maintained centrally instead of per laptop. macOS only.
 Your repositories should be flat siblings, inside one parent directory with no subfolders:
 
 ```
-~/Quintel/
+~/ETM/
 ├── etengine/
 ├── etmodel/
 ├── etsource/
@@ -38,10 +38,10 @@ If you already have the repositories, inside your parent directory run:
 git clone git@github.com:quintel/ETLauncher.git
 ```
 
-Otherwise, if you're starting from scratch:
+### Starting from scratch
 
 ```sh
-mkdir ~/Quintel && cd ~/Quintel
+mkdir ~/ETM && cd ~/ETM
 git clone git@github.com:quintel/etengine.git
 git clone git@github.com:quintel/etmodel.git
 git clone git@github.com:quintel/etsource.git
@@ -65,7 +65,7 @@ grep -q myetm.local.energytransitionmodel.com /etc/hosts || sudo sh -c 'echo "12
 ## 3. Start
 
 ```sh
-cd ~/Quintel/ETLauncher
+cd ~/ETM/ETLauncher
 ./bin/up
 ```
 
