@@ -18,12 +18,12 @@ version = Version.default   # creates the default "latest" version if absent
 scopes = "openid profile email roles scenarios:read scenarios:write scenarios:delete"
 
 # redirect_uri is what each client sends and must match exactly: identity_rails
-# (etmodel/etengine) sends client_uri + /auth/identity/callback; next-auth
-# (collections) uses NEXTAUTH_URL + /api/auth/callback/<provider-id> ("identity").
+# (etmodel/etengine) sends client_uri + /auth/identity/callback. Collections
+# (multi-year-charts) is not listed: it dropped next-auth and now authenticates via the
+# shared etm_session cookie (verified against MyETM's JWKS), so it needs no OAuth client.
 apps = [
-  ["ETModel (ETLauncher local)",     ENV.fetch("ETMODEL_CLIENT_ID"),     ENV.fetch("ETMODEL_CLIENT_SECRET"),     "http://etmodel.local.energytransitionmodel.com:3001/auth/identity/callback",        version.model_url],
-  ["ETEngine (ETLauncher local)",    ENV.fetch("ETENGINE_CLIENT_ID"),    ENV.fetch("ETENGINE_CLIENT_SECRET"),    "http://etengine.local.energytransitionmodel.com:3000/auth/identity/callback",       version.engine_url],
-  ["Collections (ETLauncher local)", ENV.fetch("COLLECTIONS_CLIENT_ID"), ENV.fetch("COLLECTIONS_CLIENT_SECRET"), "http://collections.local.energytransitionmodel.com:3005/api/auth/callback/identity", version.collections_url],
+  ["ETModel (ETLauncher local)",     ENV.fetch("ETMODEL_CLIENT_ID"),     ENV.fetch("ETMODEL_CLIENT_SECRET"),     "http://etmodel.local.energytransitionmodel.com:3001/auth/identity/callback",  version.model_url],
+  ["ETEngine (ETLauncher local)",    ENV.fetch("ETENGINE_CLIENT_ID"),    ENV.fetch("ETENGINE_CLIENT_SECRET"),    "http://etengine.local.energytransitionmodel.com:3000/auth/identity/callback", version.engine_url],
 ]
 
 apps.each do |name, uid, secret, redirect, uri|
@@ -36,7 +36,7 @@ apps.each do |name, uid, secret, redirect, uri|
   app.scopes       = scopes
   app.confidential = true
   app.first_party  = true   # trusted first-party app -> Doorkeeper skip_authorization, so the
-                            # silent prompt=none SSO probe returns a code instead of interaction_required
+                            # OIDC authorize step returns a code without showing a consent screen
   app.owner        = admin if app.respond_to?(:owner)   # ownership is enforced in MyETM
   app.save!
   puts "  seeded OAuth app: #{name} (#{uid}) uri=#{uri}"
