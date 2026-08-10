@@ -59,6 +59,12 @@ them. But once the stack exists you can do most day-to-day work from the GUI:
 - **ETModel JS:** no dev server - `config/shakapacker.yml` has
   `compile: true`, so packs recompile on the next request. No live-reload;
   reload the page after a JS change.
+- **Translations (i18n-js JS bundle):** i18n-js's Sprockets integration
+  doesn't track `config/locales` as a dependency of the compiled JS it embeds
+  translations into, so an edit alone won't invalidate the cached compile -
+  restart the service: `docker compose restart etmodel`. `tmp/cache/assets`
+  is `tmpfs` for this reason (see `compose.yaml`), so the restart always
+  recompiles from cold rather than reusing a stale cache.
 - **ETSource:** switching branches in your `etsource/` checkout is picked up
   automatically by etengine's file watcher; make any request and it reloads
   from the new branch.
@@ -78,6 +84,8 @@ up by a container restart (a few seconds), not an image rebuild (slow).
 
 Safe to run anytime. Nothing reinstalls if the pull changed no dependencies, but the app
 containers are always recreated - expect roughly a minute before every app serves again.
+It also runs `db:prepare` for each app (MyETM → ETEngine → ETModel), so a migration
+pulled in with the new code is applied automatically - no separate migrate step.
 
 ## Data lifecycle - does the DB persist?
 

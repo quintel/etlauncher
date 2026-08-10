@@ -37,6 +37,12 @@ if [ "$BUILD" -eq 1 ]; then
   docker compose build etengine etmodel my-etm collections
 fi
 
+# Apply any pending migrations pulled in with the new code
+echo "→ Applying pending migrations..."
+docker compose run --rm my-etm   app-boot.sh bundle exec rails db:prepare
+docker compose run --rm etengine app-boot.sh bundle exec rails db:prepare
+docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
+
 # Force-recreate the app containers so app-boot.sh re-runs. A pulled gem ref / Gemfile.lock
 # or package.json bump lives in the bind-mounted code, not the compose spec.
 echo "→ Recreating app services (gems/yarn deps install on boot)..."

@@ -72,12 +72,19 @@ cd ~/ETM/ETLauncher
 Builds images, creates databases, seeds users and OAuth apps, starts
 everything. It will take several minutes on the first run.
 
-## Did it work?
+## 4. Log in
 
-Open each app and log in - the same thing you'd already do with a local ETM,
-just at these hosts. Collections needs about a minute after `bin/up` finishes
-(it installs its packages on first boot), so give it a moment if it refuses the
-connection:
+There's no sign-up - every app shares one seeded login via MyETM (the OIDC
+provider). Open any app below and log in with:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@etm.local` | `etm-admin` |
+| Regular user | `user@etm.local` | `etm-user` |
+
+> Note: Collections needs about a minute after `bin/up`
+> finishes (it installs its packages on first boot), so give it
+> a moment if it refuses the connection:
 
 | App | URL |
 |-----|-----|
@@ -86,21 +93,48 @@ connection:
 | MyETM | http://myetm.local.energytransitionmodel.com:3002 |
 | Collections | http://collections.local.energytransitionmodel.com:3005 |
 
-Logins (see [`CREDENTIALS.md`](CREDENTIALS.md)): admin `admin@etm.local` /
-`etm-admin`, user `user@etm.local` / `etm-user`.
+## 5. Import scenarios (optional)
+
+A fresh stack starts with no scenarios. To bring some in, get an `.etm` export
+from **Admin → All Scenarios → Export selected** on a production/staging
+MyETM (or another local instance). It downloads to your `Downloads` folder.
+
+Import runs **inside the `my-etm` container**, not on your host. Put the file
+somewhere the container can see it first (the `my-etm` checkout is
+bind-mounted in, and its `tmp/` is already git-ignored):
+
+```sh
+mv ~/Downloads/*.etm ../my-etm/tmp/
+docker compose exec my-etm bin/import-scenarios tmp
+```
+
+It prompts for confirmation and, if `tmp/` has more than one `.etm` file,
+which to import. Scenarios are owned by the admin user (above) by default;
+`--user your.email@quintel.com` sets a different owner, `--on-dup create`
+always creates new scenarios instead of updating existing ones with matching
+IDs. Full options: `docker compose exec my-etm bin/import-scenarios --help`.
 
 ## Everyday use
 
-- **After `git pull` or code changes:** app code, views, routes, JS, and `etsource` branch
-  switches reload automatically - most pulls need nothing further. Run
-  `./bin/update` only if a `Gemfile` or `package.json` changed; it's safe to
-  run anytime (no-ops if nothing changed). Add `--build` only if a Dockerfile
-  or system package changed.
-- **Migrations:** `./bin/update` doesn't run them. In Docker Desktop:
-  **Containers → etengine (or another app) → Exec**, then run `bin/rails db:migrate`.
-- **Stop / start:** in Docker Desktop, **Containers → etlauncher**, use the
-  Stop/Start controls on the project or a single service. Data persists -
-  no need to re-run `bin/up`.
+**Which command do I actually run?**
+
+| I want to... | Do this |
+|---|---|
+| Pause the stack (e.g. end of day) | Docker Desktop **Stop** on the `etlauncher` project (or `docker compose stop`) |
+| Resume it | Docker Desktop **Start** (or `docker compose start`) - same containers, same data, fast |
+| Pick up a `git pull` (Gemfile/package.json changed, or a migration) | `./bin/update` |
+| Pick up a Dockerfile / system package change | `./bin/update --build` |
+| Wipe everything and start clean | `docker compose down -v && ./bin/up` |
+
+`bin/up` and `bin/update` are for setup and picking up code changes, not for
+routine stop/start - re-running `bin/up` on an already-set-up stack is safe
+(it no-ops what's already done) but far slower than just using Docker
+Desktop's controls.
+
+- **After `git pull`:** app code, views, routes, JS, and `etsource` branch
+  switches reload automatically - most pulls need nothing further from the
+  table above. `./bin/update` is only for a changed `Gemfile`/`package.json`
+  or a new migration.
 - **Run app commands (e.g. a Rails console):** in Docker Desktop,
   **Containers → service → Exec**, then run the command, e.g.
   `bin/rails console` on `etengine`.
@@ -117,6 +151,10 @@ Logins (see [`CREDENTIALS.md`](CREDENTIALS.md)): admin `admin@etm.local` /
 - **Login or redirect breaks.** Always open apps at
   `<service>.local.energytransitionmodel.com:<port>`, never bare
   `localhost:<port>` - the OAuth callback targets the configured host.
+- **`bin/import-scenarios: command not found` / it silently finds no files.**
+  Run it via `docker compose exec my-etm ...`, not directly on your host -
+  there's no local Ruby install, and your host's `~/Downloads` isn't visible
+  inside the container. See [step 5](#5-import-scenarios-optional).
 - **`../etsource/.password is missing` warning.** Expected without the
   decryption password - some scenario calculations will fail; everything else
   works.
