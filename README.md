@@ -27,7 +27,7 @@ Your repositories should be flat siblings, inside one parent directory with no s
 ├── etsource/
 ├── multi-year-charts/
 ├── my-etm/
-└── ETLauncher/  ← this repo
+└── etlauncher/  ← this repo
 ```
 
 > Note: You can call the parent directory whatever you want.
@@ -35,7 +35,7 @@ Your repositories should be flat siblings, inside one parent directory with no s
 If you already have the repositories, inside your parent directory run:
 
 ```sh
-git clone git@github.com:quintel/ETLauncher.git
+git clone git@github.com:quintel/etlauncher.git
 ```
 
 ### Starting from scratch
@@ -47,7 +47,7 @@ git clone git@github.com:quintel/etmodel.git
 git clone git@github.com:quintel/etsource.git
 git clone git@github.com:quintel/multi-year-charts.git
 git clone git@github.com:quintel/my-etm.git
-git clone git@github.com:quintel/ETLauncher.git
+git clone git@github.com:quintel/etlauncher.git
 ```
 
 Some ETSource data is encrypted. If you have the decryption password, place it
@@ -65,7 +65,7 @@ grep -q myetm.local.energytransitionmodel.com /etc/hosts || sudo sh -c 'echo "12
 ## 3. Start
 
 ```sh
-cd ~/ETM/ETLauncher
+cd ~/ETM/etlauncher
 ./bin/up
 ```
 

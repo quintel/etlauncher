@@ -128,7 +128,7 @@ docker compose run --rm workspace zsh
 docker compose exec workspace zsh
 ```
 
-- **VS Code:** open the `ETLauncher` folder and choose **"Reopen in
+- **VS Code:** open the `etlauncher` folder and choose **"Reopen in
   Container"**. This starts **only** the workspace (not the whole stack); the
   integrated terminal opens inside it. Start the apps separately with
   `./bin/up` when needed.
@@ -195,7 +195,7 @@ git clone git@github.com:quintel/identity_rails.git
 ├── etsource/
 ├── multi-year-charts/
 ├── my-etm/
-├── ETLauncher/
+├── etlauncher/
 ├── merit/
 ├── atlas/
 ├── fever/
