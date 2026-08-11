@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Run RSpec against a running service, with the environment specs actually need.
+#   ./bin/test etmodel                            # full suite
+#   ./bin/test etengine spec/models/foo_spec.rb:42
+#
+# Wraps 'docker compose exec -e RAILS_ENV=test <service> bundle exec rspec' - the
+# containers boot as RAILS_ENV=development, so rails_helper.rb's ||= assignment never
+# switches to test on its own.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 <etengine|etmodel|my-etm> [rspec args...]" >&2
+  exit 1
+fi
+
+service="$1"; shift
+docker compose exec -e RAILS_ENV=test "$service" bundle exec rspec "$@"

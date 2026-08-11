@@ -10,15 +10,16 @@ installed gems/packages):
 
 ```sh
 docker compose exec etengine bin/rails console
-docker compose exec -e RAILS_ENV=test etmodel bundle exec rspec
+./bin/test etmodel                                # full suite; add a path/line to narrow it
 docker compose logs -f etmodel
 docker compose exec database mysql -uroot -pdev   # the shared DB (all apps)
 ```
 
-`RAILS_ENV=test` is required for specs: the containers set `RAILS_ENV=development`, so
-`spec/rails_helper.rb`'s `ENV['RAILS_ENV'] ||= 'test'` never applies. Without it the
-test-group gems are never required (`uninitialized constant FactoryBot`) and any spec
-that did load would run against the development database.
+`./bin/test <service> [rspec args]` wraps `docker compose exec -e RAILS_ENV=test
+<service> bundle exec rspec`. `RAILS_ENV=test` is required: the containers set
+`RAILS_ENV=development`, so `spec/rails_helper.rb`'s `ENV['RAILS_ENV'] ||= 'test'` never
+applies. Without it the test-group gems are never required (`uninitialized constant
+FactoryBot`) and any spec that did load would run against the development database.
 
 There is no host-level access to the database - `database` has no port
 mapped to the host, only to the other containers.
