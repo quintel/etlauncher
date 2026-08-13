@@ -49,6 +49,7 @@ services:
       ETSOURCE_PATH: /etsource
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
+      ETSOURCE_LIVE_RELOAD_FORCE_POLLING: "true"
     ports:
       - "3000:3000"
     volumes:
