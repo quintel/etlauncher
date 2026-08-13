@@ -41,8 +41,10 @@ them. But once the stack exists you can do most day-to-day work from the GUI:
   - `database` → `mysql -uroot -pdev` (password is `DB_ROOT_PASSWORD`)
 - **Arrow keys not working in Exec?** Docker Desktop's **Exec** opens the
   container's basic `/bin/sh` (dash), which has **no command history or line
-  editing**. Type `zsh` (or `bash`) for a full shell - or use a real terminal
-  (`docker compose exec workspace zsh`).
+  editing**. Type `bash` for a full shell - every app image (`etengine`,
+  `etmodel`, `my-etm`, `database`) has it, but none of them ship `zsh`. For a
+  richer shell (history, oh-my-zsh), use a real terminal against `workspace`
+  instead, which does have `zsh`: `docker compose exec workspace zsh`.
 - **Reset everything (destructive):** delete the `etlauncher_db_data` volume
   (**Volumes** tab), or delete the project with its volumes from the
   Containers view, then run `./bin/up` once to rebuild and reseed. Same as
@@ -274,7 +276,9 @@ Notes:
 
 1. Creates `.env` from `.env.example` if missing; warns (doesn't overwrite)
    if an existing `.env` is missing a variable `.env.example` now has. Checks
-   ports 3000/3001/3002/3005 are free and the sibling checkouts exist.
+   ports 3000/3001/3002/3005 are free and the sibling checkouts exist - if the
+   stack is already running, this fails fast here without touching anything;
+   use `./bin/update` to pick up changes on a running stack instead.
 2. Reports Docker's disk usage, then removes ETLauncher's own stopped
    containers and leftover untagged images - filtered by the
    `com.docker.compose.project=etlauncher` label, so other projects are never

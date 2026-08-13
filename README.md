@@ -168,3 +168,43 @@ Desktop's controls.
 Contributing to ETLauncher, or editing a gem (merit, atlas, fever,
 refinery, turbine, identity_rails)? See
 [`docs/development.md`](docs/development.md).
+
+## Where do I run this? Terminal or Docker
+
+Every app repo is bind-mounted into its container, so editing files always
+happens on your host, in your own editor. The question is where you *execute*
+commands.
+
+| I want to... | Run it... | Example |
+|---|---|---|
+| `git` (clone, pull, checkout, commit) | **Host terminal** | `cd ../etengine && git pull` (your normal processes) |
+| Edit code, YAML, config | **Host**, your editor | bind-mounted live into the container |
+| Rails migration | **Docker**, app container | `docker compose exec etengine bin/rails db:migrate` (or automatic: `bin/update` runs migrations for every app) |
+| Rails console | **Docker**, app container | `docker compose exec etengine bin/rails console` or just `bin/rails console` via the exec tab |
+| App test suites (etengine/etmodel/my-etm) | **Docker**, via wrapper | `bin/test etmodel spec/path/to_spec.rb` |
+| Standalone gem specs (merit, atlas, fever, turbine, refinery) | **Docker**, `workspace` container | `docker compose exec workspace zsh` then `cd atlas && bundle install && rake spec` - these gems have no app container of their own; only `workspace` has a Ruby toolchain with every repo mounted |
+| ETSource checks - `rake validate`, Atlas specs, dataset/graph sanity checks | **Docker**, `workspace` container | `docker compose exec workspace zsh -c "cd etsource && bundle install && rake validate"` - ETSource has no service in `compose.yaml`; it's mounted into `etengine` at `/etsource` for the app to *read*, but validating it needs ETSource's own `Gemfile` (which pulls in Atlas), not etengine's bundle |
+| Switching ETSource branches | **Host terminal** (git) | just check out the branch - etengine's file watcher picks it up on the next request |
+| pyetm scripts / notebooks | **Docker**, `workspace` container | pyetm is installed system-wide there; open a `.ipynb` in VS Code against the container's Python interpreter |
+| Stack lifecycle (`bin/up`, `bin/update`, `bin/db-dump`, `bin/db-restore`, `bin/seed-users`, `bin/seed-oauth`) | **Host terminal only** | these shell out to `docker compose`/`docker inspect` themselves. Docker Desktop can't run them directly |
+
+## Do I need to restart something?
+
+Most edits just need a page reload, or nothing at all. A few need a container
+restart because the app caches the thing you changed at boot; fewer still
+need `./bin/update` because a dependency or image changed underneath the app.
+
+| Change | What's needed | Why |
+|---|---|---|
+| Rails `app/` code, views, routes (etengine, etmodel, my-etm) | Nothing | Reloads on the next request |
+| Collections (Next.js) components | Nothing | Reloads automatically |
+| ETSource branch switch | Nothing | Reloads on the next request |
+| ETModel JS/CSS packs | **Browser reload** | Shakapacker recompiles on the next request (`compile: true`) but has no live-reload, so refresh the page |
+| Locale files (`config/locales`) | **Restart the container** | Docker Desktop: **Containers → etmodel → Restart** (or `docker compose restart etmodel`) |
+| Sliders, charts, tabs, slides (ETModel's `config/interface/*.yml`) | **Restart the container** | Docker Desktop: **Containers → etmodel → Restart** (or `docker compose restart etmodel`) |
+| Initializers or `config/settings.yml` | **Restart the container** | Docker Desktop: **Containers → service → Restart** (or `docker compose restart <service>`) - Rails only reads these at boot |
+| `overrides/*.settings.local.yml` or `.env` | **Recreate the container** | `docker compose up -d --force-recreate <service>` |
+| `Gemfile`/`Gemfile.lock` or `package.json`/`yarn.lock` | `./bin/update` | dependencies install into a named volume on container boot; a restart alone won't re-run bundle/yarn install |
+| New migration pulled via `git pull` | `./bin/update` | runs `db:prepare` for every app automatically - no separate migrate step |
+| `Dockerfile` / system packages | `./bin/update --build` | the image itself needs rebuilding |
+| Toggling `DEV_GEMS` on/off | Re-run `./bin/up` or `./bin/update` with the new value | rewrites the gem overrides at boot |
