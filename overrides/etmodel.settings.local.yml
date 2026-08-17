@@ -5,6 +5,5 @@ identity:
   client_id: etm-local-etmodel-client
   client_secret: etm-local-etmodel-secret-000000000000
   client_uri: http://etmodel.local.energytransitionmodel.com:3001
-  resource_uri: http://etengine.local.energytransitionmodel.com:3000
 
 collections_url: http://collections.local.energytransitionmodel.com:3005
