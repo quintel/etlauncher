@@ -299,6 +299,11 @@ Notes:
   `docker system prune` (add `-a` to drop unused tagged images too). Neither
   script does this for you because it reaches every other project on the
   machine and shrinks the shared build cache.
+- **`NoScenariosMigrated` during `bin/update`:** an ETEngine migration updates
+  existing scenarios and yours has none it applies to. Nothing is wrong with
+  your database - re-run with `SKIP_SCENARIO_CHECK=1 ./bin/update` to
+  record the migration as applied and move on. Leave the flag off when you are
+  testing a scenario migration you wrote, where the error is important.
 - **Python packages changed (e.g. pyetm version bump):** rebuild the
   workspace image - `docker compose build workspace` - then reconnect. Named
   volumes for Ruby/Node deps are unaffected.
