@@ -37,11 +37,14 @@ if [ "$BUILD" -eq 1 ]; then
   docker compose build etengine etmodel my-etm collections
 fi
 
-# Apply any pending migrations pulled in with the new code
+# Apply any pending migrations pulled in with the new code.
 echo "→ Applying pending migrations..."
-docker compose run --rm my-etm   app-boot.sh bundle exec rails db:prepare
-docker compose run --rm etengine app-boot.sh bundle exec rails db:prepare
-docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
+failed_migrations=""
+for app in my-etm etengine etmodel; do
+  docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK \
+    "$app" app-boot.sh bundle exec rails db:prepare ||
+      failed_migrations="$failed_migrations $app"
+done
 
 # Force-recreate the app containers so app-boot.sh re-runs. A pulled gem ref / Gemfile.lock
 # or package.json bump lives in the bind-mounted code, not the compose spec.
@@ -50,5 +53,10 @@ docker compose up -d --force-recreate etengine etmodel my-etm collections
 
 echo "→ Ensuring remaining services are up..."
 docker compose up -d
+
+if [ -n "$failed_migrations" ]; then
+  echo "✗ Stack updated, but db:prepare failed for:$failed_migrations" >&2
+  exit 1
+fi
 
 echo "✓ Stack updated."
