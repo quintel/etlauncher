@@ -50,6 +50,10 @@ services:
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
       ETSOURCE_LIVE_RELOAD_FORCE_POLLING: "true"
+      # Accept the bare "etengine" alias co-located apps use on etm-internal. Development
+      # restricts config.hosts to ETM_HOST_PARENT, so without this a service-name request
+      # is rejected; the deployed environments leave config.hosts empty and accept it.
+      RAILS_DEVELOPMENT_HOSTS: etengine
     ports:
       - "3000:3000"
     volumes:
@@ -91,6 +95,12 @@ services:
       MYSQL_DATABASE: etmodel_development
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
+      # Reach etengine by its service name on etm-internal rather than the public host,
+      # as the deployed environments do, so Settings.ete_internal_url is the branch
+      # exercised locally too.
+      ETE_INTERNAL_URL: http://etengine:3000
+      # Accept the bare "etmodel" alias collections uses on etm-internal.
+      RAILS_DEVELOPMENT_HOSTS: etmodel
     ports:
       - "3001:3001"
     volumes:
@@ -170,6 +180,11 @@ services:
       NEXT_PUBLIC_ETMODEL_URL: ${ETMODEL_URL}
       NEXT_PUBLIC_MYETM_URL: ${MYETM_URL}
       NEXT_PUBLIC_SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
+      # Server-side base URLs the API routes read in preference to the NEXT_PUBLIC_ values
+      # above, reaching both apps by service name on etm-internal as the deployed
+      # environments do. etmodel answers on 3001 here, unlike 3000 on the servers.
+      ETENGINE_INTERNAL_URL: http://etengine:3000
+      ETMODEL_INTERNAL_URL: http://etmodel:3001
     ports:
       - "3005:3005"
     volumes:
