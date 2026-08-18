@@ -106,9 +106,9 @@ done
 # 9. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
 #    Wrap in app-boot.sh so a Gemfile delta (the bundle volume can lag a rebuilt image)
 #    is installed before db:prepare — `run` drops the service's app-boot.sh command.
-docker compose run --rm my-etm   app-boot.sh bundle exec rails db:prepare
-docker compose run --rm etengine app-boot.sh bundle exec rails db:prepare
-docker compose run --rm etmodel  app-boot.sh bundle exec rails db:prepare
+docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK my-etm   app-boot.sh bundle exec rails db:prepare
+docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK etengine app-boot.sh bundle exec rails db:prepare
+docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK etmodel  app-boot.sh bundle exec rails db:prepare
 
 # 10. Build MyETM's Tailwind CSS. Its container only runs `rails server` (no
 #     `bin/dev`/Procfile.dev watcher), so app/assets/builds/tailwind.css never gets
