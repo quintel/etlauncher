@@ -15,4 +15,4 @@ if [ "$#" -lt 1 ]; then
 fi
 
 service="$1"; shift
-docker compose exec -e RAILS_ENV=test "$service" bundle exec rspec "$@"
+docker compose exec -e RAILS_ENV=test -e SSO_COOKIE_SUFFIX= "$service" bundle exec rspec "$@"
