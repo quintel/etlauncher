@@ -192,7 +192,7 @@ git clone git@github.com:quintel/identity_rails.git
 ```
 
 ```
-~/Quintel/
+~/Github/etm/
 ├── etengine/
 ├── etmodel/
 ├── etsource/
