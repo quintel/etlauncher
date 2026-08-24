@@ -21,7 +21,7 @@ maintained centrally instead of per laptop. macOS only.
 Your repositories should be flat siblings, inside one parent directory with no subfolders:
 
 ```
-~/ETM/
+~/Github/etm/
 ├── etengine/
 ├── etmodel/
 ├── etsource/
@@ -30,7 +30,8 @@ Your repositories should be flat siblings, inside one parent directory with no s
 └── etlauncher/  ← this repo
 ```
 
-> Note: You can call the parent directory whatever you want.
+> Note: `~/Github/etm` is a convention, not a requirement.
+> Nothing breaks if your parent directory is somewhere else.
 
 If you already have the repositories, inside your parent directory run:
 
@@ -41,7 +42,7 @@ git clone git@github.com:quintel/etlauncher.git
 ### Starting from scratch
 
 ```sh
-mkdir ~/ETM && cd ~/ETM
+mkdir -p ~/Github/etm && cd ~/Github/etm
 git clone git@github.com:quintel/etengine.git
 git clone git@github.com:quintel/etmodel.git
 git clone git@github.com:quintel/etsource.git
@@ -65,7 +66,7 @@ grep -q myetm.local.energytransitionmodel.com /etc/hosts || sudo sh -c 'echo "12
 ## 3. Start
 
 ```sh
-cd ~/ETM/etlauncher
+cd ~/Github/etm/etlauncher
 ./bin/up
 ```
 
