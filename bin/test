@@ -1,18 +1,33 @@
 #!/usr/bin/env bash
-# Run RSpec against a running service, with the environment specs actually need.
+# Run a service's test suite against the running container, with the environment the
+# suite actually needs.
 #   ./bin/test etmodel                            # full suite
 #   ./bin/test etengine spec/models/foo_spec.rb:42
+#   ./bin/test collections                        # jest, not rspec
+#   ./bin/test collections utils/inputs
 #
-# Wraps 'docker compose exec -e RAILS_ENV=test <service> bundle exec rspec' - the
-# containers boot as RAILS_ENV=development, so rails_helper.rb's ||= assignment never
-# switches to test on its own.
+# The Rails services boot as RAILS_ENV=development, so rails_helper.rb's ||= assignment
+# never switches to test on its own. Collections is a Next.js app and runs jest instead.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 <etengine|etmodel|my-etm> [rspec args...]" >&2
+  echo "Usage: $0 <etengine|etmodel|my-etm|collections> [test args...]" >&2
   exit 1
 fi
 
 service="$1"; shift
-docker compose exec -e RAILS_ENV=test -e SSO_COOKIE_SUFFIX= "$service" bundle exec rspec "$@"
+
+case "$service" in
+  collections)
+    # CI=true stops jest watching, which an exec session cannot drive.
+    docker compose exec -e CI=true "$service" yarn jest "$@"
+    ;;
+  etengine|etmodel|my-etm)
+    docker compose exec -e RAILS_ENV=test -e SSO_COOKIE_SUFFIX= "$service" bundle exec rspec "$@"
+    ;;
+  *)
+    echo "Unknown service '$service'. Expected etengine, etmodel, my-etm or collections." >&2
+    exit 1
+    ;;
+esac
