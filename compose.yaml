@@ -40,8 +40,8 @@ services:
     build:
       context: ../etengine
     # app-boot.sh warms gems from a named volume and applies DEV_GEMS, then execs the
-    # server command. entrypoint.sh runs puma (binds 3000).
-    command: ["app-boot.sh", ".docker/entrypoint.sh"]
+    # server command
+    command: ["app-boot.sh", "./bin/rails", "s", "-b", "0.0.0.0", "-p", "3000"]
     environment:
       <<: *mysql-env
       RAILS_ENV: development
@@ -59,7 +59,6 @@ services:
       - ../etengine:/app:cached
       - ../etsource:/etsource:cached
       - ./overrides/etengine.settings.local.yml:/app/config/settings.local.yml:ro
-      - ./overrides/log_to_stdout.rb:/app/config/initializers/log_to_stdout.rb:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - etengine_bundle:/usr/local/bundle
       - etengine_node_modules:/app/node_modules
@@ -103,7 +102,6 @@ services:
     volumes:
       - ../etmodel:/app:cached
       - ./overrides/etmodel.settings.local.yml:/app/config/settings.local.yml:ro
-      - ./overrides/log_to_stdout.rb:/app/config/initializers/log_to_stdout.rb:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - etmodel_bundle:/usr/local/bundle
       - etmodel_node_modules:/app/node_modules
@@ -152,7 +150,6 @@ services:
     volumes:
       - ../my-etm:/app:cached
       - ./overrides/myetm.settings.local.yml:/app/config/settings.local.yml:ro
-      - ./overrides/log_to_stdout.rb:/app/config/initializers/log_to_stdout.rb:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - myetm_bundle:/usr/local/bundle
       - myetm_cache:/app/tmp/cache
