@@ -45,6 +45,7 @@ services:
     environment:
       <<: *mysql-env
       RAILS_ENV: development
+      RAILS_LOG_TO_STDOUT: "1"   # development.rb reassigns the logger to STDOUT
       MYSQL_DATABASE: etengine_development    # db:prepare also creates _queue_ and _cache_
       ETSOURCE_PATH: /etsource
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
@@ -59,7 +60,6 @@ services:
       - ../etengine:/app:cached
       - ../etsource:/etsource:cached
       - ./overrides/etengine.settings.local.yml:/app/config/settings.local.yml:ro
-      - ./overrides/log_to_stdout.rb:/app/config/initializers/log_to_stdout.rb:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - etengine_bundle:/usr/local/bundle
       - etengine_node_modules:/app/node_modules
@@ -92,6 +92,7 @@ services:
     environment:
       <<: *mysql-env
       RAILS_ENV: development
+      RAILS_LOG_TO_STDOUT: "1"   # development.rb reassigns the logger to STDOUT
       MYSQL_DATABASE: etmodel_development
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
@@ -103,7 +104,6 @@ services:
     volumes:
       - ../etmodel:/app:cached
       - ./overrides/etmodel.settings.local.yml:/app/config/settings.local.yml:ro
-      - ./overrides/log_to_stdout.rb:/app/config/initializers/log_to_stdout.rb:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - etmodel_bundle:/usr/local/bundle
       - etmodel_node_modules:/app/node_modules
@@ -132,6 +132,7 @@ services:
     environment:
       <<: *mysql-env
       RAILS_ENV: development
+      RAILS_LOG_TO_STDOUT: "1"   # development.rb reassigns the logger to STDOUT
       MYSQL_DATABASE: my_etm_development
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       OPENID_ISSUER: ${MYETM_URL}            # pins token `iss`; OIDC endpoints follow request Host
@@ -152,7 +153,6 @@ services:
     volumes:
       - ../my-etm:/app:cached
       - ./overrides/myetm.settings.local.yml:/app/config/settings.local.yml:ro
-      - ./overrides/log_to_stdout.rb:/app/config/initializers/log_to_stdout.rb:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
       - myetm_bundle:/usr/local/bundle
       - myetm_cache:/app/tmp/cache
