@@ -23,6 +23,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_ROOT_HOST: '%'   # allow root from the app containers (default is localhost-only)
+    # Published for host-side GUI clients (VS Code DB plugins, TablePlus, Sequel Ace).
+    # 3307 on the host because 3306 is usually a natively-installed MySQL.
+    ports:
+      - "3307:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 2s
