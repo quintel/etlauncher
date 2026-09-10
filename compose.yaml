@@ -183,11 +183,13 @@ services:
       # Server-side only; the API routes prefer these over the NEXT_PUBLIC_ values above.
       ETENGINE_INTERNAL_URL: http://etengine:3000
       ETMODEL_INTERNAL_URL: http://etmodel:3001
+      WATCHPACK_POLLING: "true"
     ports:
       - "3005:3005"
     volumes:
       - ../multi-year-charts:/app:cached
       - collections_node_modules:/app/node_modules
+      - collections_next:/app/.next
     depends_on:
       my-etm:
         condition: service_started
@@ -233,3 +235,4 @@ volumes:
   myetm_cache:
   myetm_storage:
   collections_node_modules:
+  collections_next:
