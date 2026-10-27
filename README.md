@@ -110,10 +110,10 @@ docker compose exec my-etm bin/import-scenarios tmp
 ```
 
 It prompts for confirmation and, if `tmp/` has more than one `.etm` file,
-which to import. Scenarios are owned by the admin user (above) by default;
-`--user your.email@quintel.com` sets a different owner, `--on-dup create`
-always creates new scenarios instead of updating existing ones with matching
-IDs. Full options: `docker compose exec my-etm bin/import-scenarios --help`.
+which to import. Every import creates new scenarios owned by the admin user
+(above); `--user your.email@quintel.com` sets a different owner. Importing the
+same file twice creates the scenarios twice. Full options:
+`docker compose exec my-etm bin/import-scenarios --help`.
 
 ## Everyday use
 
