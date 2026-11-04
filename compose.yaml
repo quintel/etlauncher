@@ -149,6 +149,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       USER_EMAIL: ${USER_EMAIL}
       USER_PASSWORD: ${USER_PASSWORD}
+      # Consumed by bin/import-scenarios as its default owner:
+      IMPORT_SCENARIOS_OWNER: ${ADMIN_EMAIL}
     ports:
       - "3002:3002"
     volumes:
