@@ -20,6 +20,12 @@ if [ -n "${COLLECTIONS_PROD:-}" ]; then
 fi
 export COMPOSE_FILE
 
+# Catch a stale .env or certificate after a pull, as bin/up does.
+source ./bin/lib-preflight.sh
+require_mkcert
+require_current_env_urls
+issue_local_certificate
+
 # Report disk usage, then clean up ETLauncher's own leftovers only — this runs on every
 # pull, so a machine-wide prune here would repeatedly wipe other projects' build cache.
 source ./bin/lib-docker.sh
@@ -53,6 +59,9 @@ docker compose up -d --force-recreate etengine etmodel my-etm collections
 
 echo "→ Ensuring remaining services are up..."
 docker compose up -d
+
+echo "→ Reseeding OAuth applications..."
+./bin/seed-oauth
 
 if [ -n "$failed_migrations" ]; then
   echo "✗ Stack updated, but db:prepare failed for:$failed_migrations" >&2

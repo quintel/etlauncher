@@ -21,9 +21,10 @@ scopes = "openid profile email roles scenarios:read scenarios:write scenarios:de
 # (etmodel/etengine) sends client_uri + /auth/identity/callback. Collections
 # (multi-year-charts) is not listed: it dropped next-auth and now authenticates via the
 # shared etm_session cookie (verified against MyETM's JWKS), so it needs no OAuth client.
+callback = ->(base) { "#{ENV.fetch(base).chomp('/')}/auth/identity/callback" }
 apps = [
-  ["ETModel (ETLauncher local)",     ENV.fetch("ETMODEL_CLIENT_ID"),     ENV.fetch("ETMODEL_CLIENT_SECRET"),     "http://etmodel.local.energytransitionmodel.com:3001/auth/identity/callback",  version.model_url],
-  ["ETEngine (ETLauncher local)",    ENV.fetch("ETENGINE_CLIENT_ID"),    ENV.fetch("ETENGINE_CLIENT_SECRET"),    "http://etengine.local.energytransitionmodel.com:3000/auth/identity/callback", version.engine_url],
+  ["ETModel (ETLauncher local)",     ENV.fetch("ETMODEL_CLIENT_ID"),     ENV.fetch("ETMODEL_CLIENT_SECRET"),     callback.("ETMODEL_URL"),  version.model_url],
+  ["ETEngine (ETLauncher local)",    ENV.fetch("ETENGINE_CLIENT_ID"),    ENV.fetch("ETENGINE_CLIENT_SECRET"),    callback.("ETENGINE_URL"), version.engine_url],
 ]
 
 apps.each do |name, uid, secret, redirect, uri|
