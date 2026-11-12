@@ -6,6 +6,7 @@
 # Restore with ./bin/db-restore.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source ./bin/lib-docker.sh
 
 set -a; . ./.env; set +a
 mkdir -p dumps

@@ -3,6 +3,7 @@
 # credentials (from .env). Runs inside the MyETM container.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source ./bin/lib-docker.sh
 
 docker compose run --rm -T my-etm bundle exec rails runner - <<'RUBY'
 users = [

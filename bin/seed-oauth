@@ -4,6 +4,7 @@
 # Runs inside the MyETM container, which owns the OAuth provider.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source ./bin/lib-docker.sh
 
 # -T pipes the heredoc to `rails runner -` (read script from stdin).
 docker compose run --rm -T my-etm bundle exec rails runner - <<'RUBY'

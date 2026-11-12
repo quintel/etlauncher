@@ -26,9 +26,10 @@ require_mkcert
 require_current_env_urls
 issue_local_certificate
 
-# Report disk usage, then clean up ETLauncher's own leftovers only — this runs on every
-# pull, so a machine-wide prune here would repeatedly wipe other projects' build cache.
+# Acts on the stack bin/up last started. Report disk usage, then clean up that stack's own
+# leftovers.
 source ./bin/lib-docker.sh
+echo "→ Updating the $VERSION_TAG stack ($COMPOSE_PROJECT_NAME)..."
 report_docker_usage
 prune_etlauncher_resources
 
