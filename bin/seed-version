@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Idempotently create MyETM's Version for a stable stack's tag. Without it, Scenarios saved
+# on that stack silently fall back to the default Version. Its URLs resolve to the local
+# apps in development on their own. Latest needs none: it is the default Version.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source ./bin/lib-docker.sh
+
+[ "$VERSION_TAG" = "latest" ] && exit 0
+
+docker compose run --rm -T -e VERSION_TAG my-etm bundle exec rails runner - <<'RUBY'
+tag = ENV.fetch("VERSION_TAG")
+Version.find_or_create_by!(tag: tag) do |version|
+  version.url_prefix  = "#{tag}."
+  version.released_on = Date.current
+end
+puts "ETLauncher: Version #{tag} ready"
+RUBY

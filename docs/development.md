@@ -50,7 +50,7 @@ them. But once the stack exists you can do most day-to-day work from the GUI:
   Containers view, then run `./bin/up` once to rebuild and reseed. Same as
   `docker compose down -v && ./bin/up`.
 - **Stays terminal-only:** `./bin/up`, `./bin/update`, `./bin/seed-users`,
-  `./bin/seed-oauth`, `./bin/db-dump`, `./bin/db-restore`.
+  `./bin/seed-oauth`, `./bin/seed-version`, `./bin/db-dump`, `./bin/db-restore`.
 
 ## Code reloading
 
@@ -276,12 +276,16 @@ Notes:
 
 1. Preflight, each step aborting: mkcert's local CA is installed, ports 80
    and 443 are free, `.env`'s app URLs match `.env.example`'s, the hostnames
-   are in `/etc/hosts`, and the sibling checkouts exist. A running stack fails
-   the port check; use `./bin/update` instead. Then issues the proxy's
-   certificate into the git-ignored `certs/`.
-2. Reports Docker's disk usage, then removes ETLauncher's own stopped
-   containers and leftover untagged images - filtered by the
-   `com.docker.compose.project=etlauncher` label, so other projects are never
+   are in `/etc/hosts`, and the sibling checkouts exist. With `--version`,
+   etengine, etmodel, multi-year-charts and etsource must also be on that
+   Version's line, and Docker must have about 10 GB of disk free. Any other ETLauncher stack is stopped first, so its ports
+   are free. The same stack already running fails the port check; use
+   `bin/update` instead. Then records the stack in the git-ignored `.stack`, which every
+   other script reads, and issues the proxy's certificate into the
+   git-ignored `certs/`.
+2. Reports Docker's disk usage, then removes the stack's own stopped
+   containers and leftover untagged images - filtered by its
+   `com.docker.compose.project` label, so other projects are never
    touched. Builds images and starts the shared `database` (waits until
    healthy).
 3. `db:prepare` for MyETM → ETEngine → ETModel (MyETM first - it is the OIDC
@@ -290,7 +294,8 @@ Notes:
 4. `./bin/seed-users` + `./bin/seed-oauth` - idempotently create the dev
    admin/user and the Doorkeeper OAuth applications, with the fixed dev
    credentials from `.env`, so SSO works with no manual MyETM clicks.
-   `./bin/update` reseeds them.
+   `./bin/update` reseeds them. On a stable stack, `bin/seed-version`
+   then creates MyETM's Version for its tag.
 5. Starts the whole stack.
 
 ## Troubleshooting

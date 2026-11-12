@@ -15,6 +15,11 @@ relock_if_needed() {
   local lock="../$app/Gemfile.lock"
   [ -f "../$app/Gemfile" ] || return 0
 
+  if [ -f "$lock" ] && [ "$(locked_bundler_major "$lock")" != "$TOOLCHAIN_BUNDLER_MAJOR" ]; then
+    echo "→ $app: Gemfile.lock is from Bundler $(locked_bundler_major "$lock"), the toolchain's is $TOOLCHAIN_BUNDLER_MAJOR. Not relocked."
+    return 0
+  fi
+
   local before=""
   [ -f "$lock" ] && before=$(shasum "$lock" | awk '{ print $1 }')
 
@@ -29,9 +34,16 @@ relock_if_needed() {
   return 0
 }
 
+# Relocking rewrites BUNDLED WITH to the toolchain's Bundler, which an older Version's
+# Ruby cannot install, so a lockfile from another major is left alone.
+locked_bundler_major() {
+  awk '/^BUNDLED WITH/ { getline; split($1, v, "."); print v[1] }' "$1"
+}
+
 relock_all() {
   echo "→ Ensuring toolchain image..."
   ensure_workspace_image
+  TOOLCHAIN_BUNDLER_MAJOR="$(docker compose run --rm --no-deps -T workspace bundle --version | grep -oE '[0-9]+' | head -1)"
   for app in etengine etmodel my-etm; do
     relock_if_needed "$app"
   done

@@ -4,3 +4,5 @@ etengine:
   uri: https://etengine.local.energytransitionmodel.com
 collections:
   uri: https://collections.local.energytransitionmodel.com
+
+versions_without_bound_flag: []

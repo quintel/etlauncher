@@ -121,6 +121,32 @@ which to import. Every import creates new scenarios owned by the admin user
 same file twice creates the scenarios twice. Full options:
 `docker compose exec my-etm bin/import-scenarios --help`.
 
+## 6. Run a stable Version (optional)
+
+Latest runs from each repo's `master`. To run a stable Version such as 2025.01
+instead, check out its branch in etengine, etmodel, multi-year-charts and
+etsource, then start it by its tag:
+
+```sh
+for repo in etengine etmodel multi-year-charts etsource; do git -C ../$repo checkout 2025-01; done
+bin/up --version 2025.01
+```
+
+MyETM stays on `master`, since it serves every Version. A feature branch off `2025-01`
+works too.
+
+Each stack is its own Docker project with its own databases, so no scenario data etc exists between them. 2025.01 runs as `etlauncher-2025-01`, latest as `etlauncher`.
+A stable stack takes about 10 GB more disk, so give Docker at least 60 GB.
+
+- **One at a time.** Both serve the same hostnames on ports 80 and 443, so
+  `bin/up` stops any other ETLauncher stack before it starts. Its containers
+  and data are kept.
+- **The scripts follow along.** `bin/update`, `bin/test`, `bin/db-dump` and
+  the rest act on the stack `bin/up` last started. A bare `bin/up` returns
+  to latest, with its data as you left it.
+- **Commands by hand need the project specified.** For example
+  `docker compose -p etlauncher-2025-01 exec etengine bin/rails c`.
+
 ## Everyday use
 
 **Which command do I actually run?**
@@ -167,6 +193,9 @@ Desktop's controls.
 - **`../etsource/.password is missing` warning.** Expected without the
   decryption password - some scenario calculations will fail; everything else
   works.
+- **`bin/up` fails: `Docker has N GB of disk free`.** It checks before
+  building. Clear the build cache with `docker builder prune`, or raise the
+  disk image size in Docker Desktop → Settings → Resources.
 - **`bin/up` fails part-way through the build.** Usually disk space. `bin/up`
   prints Docker's disk usage before building, so check those numbers; reclaim
   space with `docker system prune` or raise the disk image size in Docker
@@ -195,7 +224,7 @@ commands.
 | ETSource checks - `rake validate`, Atlas specs, dataset/graph sanity checks | **Docker**, `workspace` container | `docker compose exec workspace zsh -c "cd etsource && bundle install && rake validate"` - ETSource has no service in `compose.yaml`; it's mounted into `etengine` at `/etsource` for the app to *read*, but validating it needs ETSource's own `Gemfile` (which pulls in Atlas), not etengine's bundle |
 | Switching ETSource branches | **Host terminal** (git) | just check out the branch - etengine's file watcher picks it up on the next request |
 | pyetm scripts / notebooks | **Docker**, `workspace` container | pyetm is installed system-wide there; open a `.ipynb` in VS Code against the container's Python interpreter |
-| Stack lifecycle (`bin/up`, `bin/update`, `bin/db-dump`, `bin/db-restore`, `bin/seed-users`, `bin/seed-oauth`) | **Host terminal only** | these shell out to `docker compose`/`docker inspect` themselves. Docker Desktop can't run them directly |
+| Stack lifecycle (`bin/up`, `bin/update`, `bin/db-dump`, `bin/db-restore`, `bin/seed-users`, `bin/seed-oauth`, `bin/seed-version`) | **Host terminal only** | these shell out to `docker compose`/`docker inspect` themselves. Docker Desktop can't run them directly |
 
 ## Do I need to restart something?
 

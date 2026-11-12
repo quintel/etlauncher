@@ -10,6 +10,7 @@
 # never switches to test on its own. Collections is a Next.js app and runs jest instead.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source ./bin/lib-docker.sh
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <etengine|etmodel|my-etm|collections> [test args...]" >&2
