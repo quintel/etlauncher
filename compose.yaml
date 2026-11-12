@@ -7,6 +7,7 @@
 # and holds the public hostnames so containers reach them through it too. etm-internal
 # carries plain HTTP service-name hops. MyETM is on nginx-proxy only.
 
+# bin/lib-docker.sh sets COMPOSE_PROJECT_NAME per stack: etlauncher-2025-01 for 2025.01.
 name: etlauncher
 
 # The local CA's root, added to each app's trust store at boot. Written by bin/up.
@@ -69,6 +70,7 @@ services:
       RAILS_ENV: development
       MYSQL_DATABASE: etengine_development    # db:prepare also creates _queue_ and _cache_
       ETSOURCE_PATH: /etsource
+      VERSION_TAG: ${VERSION_TAG:-latest}
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
       ETSOURCE_LIVE_RELOAD_FORCE_POLLING: "true"
@@ -114,6 +116,7 @@ services:
       <<: *mysql-env
       RAILS_ENV: development
       MYSQL_DATABASE: etmodel_development
+      VERSION_TAG: ${VERSION_TAG:-latest}
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
       # Reach etengine by service name on etm-internal, as the deployed environments do.
@@ -146,6 +149,7 @@ services:
       nginx-proxy:
 
   my-etm:
+    image: etlauncher-my-etm
     build:
       context: ../my-etm
     command: ["app-boot.sh", "bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3002"]
@@ -199,6 +203,7 @@ services:
     command: sh -c "yarn install --frozen-lockfile && yarn dev -p 3005 -H 0.0.0.0"
     environment:
       NODE_ENV: development
+      VERSION_TAG: ${VERSION_TAG:-latest}
       NEXT_PUBLIC_ETENGINE_URL: ${ETENGINE_URL}
       NEXT_PUBLIC_ETMODEL_URL: ${ETMODEL_URL}
       NEXT_PUBLIC_MYETM_URL: ${MYETM_URL}
@@ -226,6 +231,8 @@ services:
   # Managed dev shell — the dev-container target. Toolchain only; run app
   # commands against the services (e.g. `docker compose exec etengine bin/rails c`).
   workspace:
+    # One toolchain image for every stack; it does not depend on the Version.
+    image: etlauncher-workspace
     build:
       context: ./devshell
     command: sleep infinity

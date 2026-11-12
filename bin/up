@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # Bring up the full local stack from clean sibling checkouts.
+#   ./bin/up                    # latest, from master
+#   ./bin/up --version 2025.01  # a stable Version, from its 2025-01 branches
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+source ./bin/lib-docker.sh
+case "${1:-}" in
+  "") use_stack latest ;;
+  --version) use_stack "${2:?Usage: $0 [--version <tag>]}" ;;
+  *) echo "Usage: $0 [--version <tag>]" >&2; exit 1 ;;
+esac
 
 # Cached image builds.
 export DOCKER_BUILDKIT=1
@@ -27,9 +36,10 @@ export COMPOSE_FILE
 
 source ./bin/lib-preflight.sh
 
-# 1-2. mkcert and its local CA installed; ports 80 and 443 free. Fail fast, before the
-#      multi-minute build below.
+# 1-2. mkcert and its local CA installed; ports 80 and 443 free once any other ETLauncher
+#      stack is stopped. Fail fast, before the multi-minute build below.
 require_mkcert
+stop_other_stacks
 require_free_ports
 
 # 3. Environment file. Never overwritten once created, so a variable added to
@@ -55,7 +65,8 @@ fi
 # 4. Every app hostname must resolve to this machine.
 require_hosts_entries
 
-# 5. Sibling checkouts must exist next to ETLauncher
+# 5. Sibling checkouts must exist next to ETLauncher, and a stable stack's must be on
+#    its Version's line. MyETM stays on master.
 missing=()
 for repo in etengine etmodel multi-year-charts my-etm etsource; do
   [ -d "../$repo" ] || missing+=("$repo")
@@ -65,6 +76,12 @@ if [ ${#missing[@]} -gt 0 ]; then
   echo "Clone them alongside ETLauncher (see README) and re-run." >&2
   exit 1
 fi
+[ "$VERSION_TAG" != "latest" ] && require_version_branches "$STACK_BRANCH"
+require_free_docker_disk
+
+# Every preflight passed, so bin/update and the rest now follow this stack.
+record_stack
+echo "Starting the $VERSION_TAG stack as project $COMPOSE_PROJECT_NAME."
 
 # 6. Ensure the settings.local.yml overlay targets exist — Docker can't mount a file
 #    over a path that doesn't exist yet. The container shadows it with
@@ -80,10 +97,9 @@ done
 # 7. The proxy's wildcard certificate, and the CA root the app containers trust.
 issue_local_certificate
 
-# 8. Report Docker's disk usage, then clean up ETLauncher's own leftovers only. A
+# 8. Report Docker's disk usage, then clean up this stack's own leftovers. A
 #    machine-wide prune is left to the user: it reaches other projects' containers and
 #    the shared build cache, which is not ETLauncher's to reclaim.
-source ./bin/lib-docker.sh
 report_docker_usage
 prune_etlauncher_resources
 
@@ -117,15 +133,17 @@ docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK etmodel  
 docker compose run --rm my-etm app-boot.sh bundle exec rails tailwindcss:build
 
 # 14. Precompile ETModel's JS packs. There's no persistent webpack-dev-server
-#     container (compile: true in config/shakapacker.yml compiles packs on demand
-#     per-request instead) — this just avoids the first real request in the browser
-#     paying that compile time.
-docker compose run --rm etmodel app-boot.sh sh -c "yarn install --frozen-lockfile && bin/shakapacker"
+#     container (compile: true compiles packs on demand per-request instead) — this
+#     just avoids the first real request in the browser paying that compile time.
+docker compose run --rm etmodel app-boot.sh sh -c \
+  "yarn install --frozen-lockfile && if [ -x bin/shakapacker ]; then bin/shakapacker; else bin/webpacker; fi"
 
 # 15. Seed the deterministic admin + regular user, then the OAuth applications
-#     (OAuth apps are owned by the admin user, so users come first).
+#     (OAuth apps are owned by the admin user, so users come first), then a stable
+#     stack's Version.
 ./bin/seed-users
 ./bin/seed-oauth
+./bin/seed-version
 
 # 16. Start everything
 docker compose up -d
@@ -135,7 +153,7 @@ set -a; . ./.env; set +a
 
 cat <<DONE
 
-ETLauncher is up. Open each app at its own *.local.energytransitionmodel.com host
+ETLauncher is up ($VERSION_TAG, project $COMPOSE_PROJECT_NAME). Open each app at its own *.local.energytransitionmodel.com host
 (shared .local.energytransitionmodel.com cookie parent):
   ETEngine     ${ETENGINE_URL}
   ETModel      ${ETMODEL_URL}
@@ -146,7 +164,8 @@ Logins (also in CREDENTIALS.md):
   admin  ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}
   user   ${USER_EMAIL} / ${USER_PASSWORD}
 
-Run app commands with 'docker compose exec', e.g.:  docker compose exec etengine bin/rails c
+Run app commands with 'docker compose -p $COMPOSE_PROJECT_NAME exec', e.g.:
+  docker compose -p $COMPOSE_PROJECT_NAME exec etengine bin/rails c
 DONE
 
 # Last, so it isn't buried under the build output. The .password file is untracked.
