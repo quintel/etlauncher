@@ -25,7 +25,7 @@ require_mkcert() {
 require_free_ports() {
   local busy=() port
   for port in 80 443; do
-    lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && busy+=("$port")
+    nc -z 127.0.0.1 "$port" >/dev/null 2>&1 && busy+=("$port")
   done
   [ ${#busy[@]} -eq 0 ] && return 0
   echo "Port(s) already in use: ${busy[*]}" >&2
