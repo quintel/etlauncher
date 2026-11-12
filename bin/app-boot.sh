@@ -6,9 +6,14 @@
 #   2. DEV_GEMS: when set (comma-separated sibling repo dir names), the listed gems are
 #      swapped for live /workspace checkouts via a generated path-override Gemfile, so a
 #      gem can be edited with no push + SHA bump. Off by default (pinned refs match prod).
+#   3. Local CA: added to the system trust store (never via SSL_CERT_FILE, which would
+#      replace it and break outbound TLS).
 #
 # Usage: app-boot.sh <server command...>
 set -euo pipefail
+
+cp /etc/etlauncher-ca/rootCA.pem /usr/local/share/ca-certificates/etlauncher-local-ca.crt
+update-ca-certificates >/dev/null 2>&1
 
 # Never frozen in dev — we install deltas at boot.
 bundle config unset frozen >/dev/null 2>&1 || true

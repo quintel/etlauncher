@@ -1,0 +1,2 @@
+# Default is 1m. Scenario imports post each dump through the proxy and outgrow that.
+client_max_body_size 100m;
