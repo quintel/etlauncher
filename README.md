@@ -135,6 +135,9 @@ bin/up --version 2025.01
 MyETM stays on `master`, since it serves every Version. A feature branch off `2025-01`
 works too.
 
+From 2027 the tag is the bare year and the branches end in `-stable`:
+`bin/up --version 2027` runs the `2027-stable` branches as `etlauncher-2027-stable`.
+
 Each stack is its own Docker project with its own databases, so no scenario data etc exists between them. 2025.01 runs as `etlauncher-2025-01`, latest as `etlauncher`.
 A stable stack takes about 10 GB more disk, so give Docker at least 60 GB.
 

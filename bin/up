@@ -2,6 +2,7 @@
 # Bring up the full local stack from clean sibling checkouts.
 #   ./bin/up                    # latest, from master
 #   ./bin/up --version 2025.01  # a stable Version, from its 2025-01 branches
+#   ./bin/up --version 2027     # a stable Version, from its 2027-stable branches
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -6,10 +6,12 @@
 STACK_FILE=".stack"
 
 # Everything follows from the tag: 2025.01 runs the 2025-01 branches as project
-# etlauncher-2025-01. Latest keeps the project name etlauncher, so its data survives.
+# etlauncher-2025-01, and 2027 runs the 2027-stable branches as etlauncher-2027-stable.
+# Latest keeps the project name etlauncher, so its data survives.
 use_stack() {
   VERSION_TAG="$1"
   STACK_BRANCH="${VERSION_TAG//./-}"
+  [[ "$VERSION_TAG" == *.* ]] || STACK_BRANCH="$VERSION_TAG-stable"
   COMPOSE_PROJECT_NAME="etlauncher"
   [ "$VERSION_TAG" != "latest" ] && COMPOSE_PROJECT_NAME="etlauncher-$STACK_BRANCH"
   COMPOSE_PROJECT_LABEL="label=com.docker.compose.project=$COMPOSE_PROJECT_NAME"
