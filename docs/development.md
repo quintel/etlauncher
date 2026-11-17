@@ -274,11 +274,11 @@ Notes:
 
 ## What `./bin/up` does
 
-1. Creates `.env` from `.env.example` if missing; warns (doesn't overwrite)
-   if an existing `.env` is missing a variable `.env.example` now has. Checks
-   ports 3000/3001/3002/3005 are free and the sibling checkouts exist - if the
-   stack is already running, this fails fast here without touching anything;
-   use `./bin/update` to pick up changes on a running stack instead.
+1. Preflight, each step aborting: mkcert's local CA is installed, ports 80
+   and 443 are free, `.env`'s app URLs match `.env.example`'s, the hostnames
+   are in `/etc/hosts`, and the sibling checkouts exist. A running stack fails
+   the port check; use `./bin/update` instead. Then issues the proxy's
+   certificate into the git-ignored `certs/`.
 2. Reports Docker's disk usage, then removes ETLauncher's own stopped
    containers and leftover untagged images - filtered by the
    `com.docker.compose.project=etlauncher` label, so other projects are never
@@ -290,6 +290,7 @@ Notes:
 4. `./bin/seed-users` + `./bin/seed-oauth` - idempotently create the dev
    admin/user and the Doorkeeper OAuth applications, with the fixed dev
    credentials from `.env`, so SSO works with no manual MyETM clicks.
+   `./bin/update` reseeds them.
 5. Starts the whole stack.
 
 ## Troubleshooting

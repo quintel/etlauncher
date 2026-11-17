@@ -1,7 +1,12 @@
 identity:
-  issuer: http://myetm.local.energytransitionmodel.com:3002
+  issuer: https://myetm.local.energytransitionmodel.com
   client_id: etm-local-etengine-client
   client_secret: etm-local-etengine-secret-00000000000
-  client_uri: http://etengine.local.energytransitionmodel.com:3000
+  client_uri: https://etengine.local.energytransitionmodel.com
 
-collections_url: http://collections.local.energytransitionmodel.com:3005
+collections_url: https://collections.local.energytransitionmodel.com
+
+# Internal hop, as beta's COLLECTIONS_INTERNAL_URL.
+hooks:
+  collections:
+    base_url: http://collections:3005

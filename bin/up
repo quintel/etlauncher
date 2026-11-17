@@ -25,10 +25,17 @@ if [ -n "${COLLECTIONS_PROD:-}" ]; then
 fi
 export COMPOSE_FILE
 
-# 1. Environment file. Never overwritten once created, so a variable added to
+source ./bin/lib-preflight.sh
+
+# 1-2. mkcert and its local CA installed; ports 80 and 443 free. Fail fast, before the
+#      multi-minute build below.
+require_mkcert
+require_free_ports
+
+# 3. Environment file. Never overwritten once created, so a variable added to
 #    .env.example later can silently go missing from an existing .env — warn,
 #    don't guess: the value might be intentionally different (e.g. a branch in
-#    progress), so this never auto-merges.
+#    progress), so this never auto-merges. A stale app URL aborts instead.
 if [ ! -f .env ]; then
   cp .env.example .env
   echo "Created .env from .env.example"
@@ -42,22 +49,13 @@ else
     echo "Warning: .env is missing variable(s) present in .env.example: ${missing_vars[*]}" >&2
     echo "Add them manually (see .env.example) — .env is never overwritten automatically." >&2
   fi
+  require_current_env_urls
 fi
 
-# 2. Ports must be free — fail fast, before the multi-minute build below.
-busy=()
-for port in 3000 3001 3002 3005; do
-  lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && busy+=("$port")
-done
-if [ ${#busy[@]} -gt 0 ]; then
-  echo "Port(s) already in use: ${busy[*]}" >&2
-  echo "Either ETLauncher is already running (nothing to do — see 'Stop / start' in the" >&2
-  echo "README), or something else is listening (e.g. a natively-running ETM). Stop it first." >&2
-  echo "Find what's holding a port: lsof -nP -iTCP:<port> -sTCP:LISTEN" >&2
-  exit 1
-fi
+# 4. Every app hostname must resolve to this machine.
+require_hosts_entries
 
-# 3. Sibling checkouts must exist next to ETLauncher
+# 5. Sibling checkouts must exist next to ETLauncher
 missing=()
 for repo in etengine etmodel multi-year-charts my-etm etsource; do
   [ -d "../$repo" ] || missing+=("$repo")
@@ -68,7 +66,7 @@ if [ ${#missing[@]} -gt 0 ]; then
   exit 1
 fi
 
-# 4. Ensure the settings.local.yml overlay targets exist — Docker can't mount a file
+# 6. Ensure the settings.local.yml overlay targets exist — Docker can't mount a file
 #    over a path that doesn't exist yet. The container shadows it with
 #    overrides/<app>.settings.local.yml; the host file is left untouched.
 for app in etmodel etengine my-etm; do
@@ -79,23 +77,26 @@ for app in etmodel etengine my-etm; do
   fi
 done
 
-# 5. Report Docker's disk usage, then clean up ETLauncher's own leftovers only. A
+# 7. The proxy's wildcard certificate, and the CA root the app containers trust.
+issue_local_certificate
+
+# 8. Report Docker's disk usage, then clean up ETLauncher's own leftovers only. A
 #    machine-wide prune is left to the user: it reaches other projects' containers and
 #    the shared build cache, which is not ETLauncher's to reclaim.
 source ./bin/lib-docker.sh
 report_docker_usage
 prune_etlauncher_resources
 
-# 6. Relock Gemfile.lock for any app whose Gemfile has drifted (e.g. a hand-edited
+# 9. Relock Gemfile.lock for any app whose Gemfile has drifted (e.g. a hand-edited
 #    gem ref) — the image build below runs bundler in frozen mode, which aborts on
 #    a mismatched lockfile otherwise.
 source ./bin/lib-relock.sh
 relock_all
 
-# 7. Build images
+# 10. Build images
 docker compose build
 
-# 8. Start the single shared database and wait for it to be healthy. One MySQL
+# 11. Start the single shared database and wait for it to be healthy. One MySQL
 #    holds every app's DB (mirrors prod's one-MySQL-per-server; see compose.yaml).
 docker compose up -d database
 echo "Waiting for database to be healthy..."
@@ -103,30 +104,30 @@ until [ "$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q 
   sleep 2
 done
 
-# 9. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
+# 12. Prepare databases. MyETM first: it is the OIDC issuer (and its seed creates the admin).
 #    Wrap in app-boot.sh so a Gemfile delta (the bundle volume can lag a rebuilt image)
 #    is installed before db:prepare — `run` drops the service's app-boot.sh command.
 docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK my-etm   app-boot.sh bundle exec rails db:prepare
 docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK etengine app-boot.sh bundle exec rails db:prepare
 docker compose run --rm -e SKIP_TEST_DATABASE=1 -e SKIP_SCENARIO_CHECK etmodel  app-boot.sh bundle exec rails db:prepare
 
-# 10. Build MyETM's Tailwind CSS. Its container only runs `rails server` (no
+# 13. Build MyETM's Tailwind CSS. Its container only runs `rails server` (no
 #     `bin/dev`/Procfile.dev watcher), so app/assets/builds/tailwind.css never gets
 #     generated otherwise and every page 500s with "asset tailwind.css is not present".
 docker compose run --rm my-etm app-boot.sh bundle exec rails tailwindcss:build
 
-# 11. Precompile ETModel's JS packs. There's no persistent webpack-dev-server
+# 14. Precompile ETModel's JS packs. There's no persistent webpack-dev-server
 #     container (compile: true in config/shakapacker.yml compiles packs on demand
 #     per-request instead) — this just avoids the first real request in the browser
 #     paying that compile time.
 docker compose run --rm etmodel app-boot.sh sh -c "yarn install --frozen-lockfile && bin/shakapacker"
 
-# 12. Seed the deterministic admin + regular user, then the OAuth applications
+# 15. Seed the deterministic admin + regular user, then the OAuth applications
 #     (OAuth apps are owned by the admin user, so users come first).
 ./bin/seed-users
 ./bin/seed-oauth
 
-# 13. Start everything
+# 16. Start everything
 docker compose up -d
 
 # Load the seeded credentials for the summary below.
@@ -136,13 +137,10 @@ cat <<DONE
 
 ETLauncher is up. Open each app at its own *.local.energytransitionmodel.com host
 (shared .local.energytransitionmodel.com cookie parent):
-  ETEngine     http://etengine.local.energytransitionmodel.com:3000
-  ETModel      http://etmodel.local.energytransitionmodel.com:3001
-  MyETM        http://myetm.local.energytransitionmodel.com:3002
-  Collections  http://collections.local.energytransitionmodel.com:3005
-
-If these don't resolve, add to /etc/hosts:
-  127.0.0.1  myetm.local.energytransitionmodel.com etmodel.local.energytransitionmodel.com etengine.local.energytransitionmodel.com collections.local.energytransitionmodel.com
+  ETEngine     ${ETENGINE_URL}
+  ETModel      ${ETMODEL_URL}
+  MyETM        ${MYETM_URL}
+  Collections  ${COLLECTIONS_URL}
 
 Logins (also in CREDENTIALS.md):
   admin  ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}

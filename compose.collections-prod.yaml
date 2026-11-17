@@ -22,8 +22,9 @@ services:
         - sentry_auth_token
     # Drop the base `next dev` command so the image's CMD (node server.js) runs.
     command: !reset null
-    # Drop the source + node_modules bind mounts so the built image is not shadowed.
-    volumes: !override []
+    # Drop the source + node_modules bind mounts so the built image is not shadowed. Keep the CA.
+    volumes: !override
+      - ./certs/ca:/etc/etlauncher-ca:ro
     environment:
       NODE_ENV: production
 

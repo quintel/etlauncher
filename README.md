@@ -13,8 +13,12 @@ maintained centrally instead of per laptop. macOS only.
 - `git`, with an [SSH key added to your GitHub
   account](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
   - every repo below is cloned over `git@github.com:`.
-- Ports 3000, 3001, 3002 and 3005 free - if anything else is listening on
-  these (e.g. a natively-running ETM), ETLauncher will not work.
+- [mkcert](https://github.com/FiloSottile/mkcert), for the local HTTPS
+  certificate: `brew install mkcert nss` (`nss` lets it reach Firefox too).
+  `bin/up` runs `mkcert -install` for you, which asks for your computer password the
+  first time. The certificate authority it creates is specific to your device.
+- Ports 80 and 443 free - if anything else is listening on these (e.g. a local
+  web server), ETLauncher will not work.
 
 ## 1. Clone the repos
 
@@ -89,10 +93,12 @@ provider). Open any app below and log in with:
 
 | App | URL |
 |-----|-----|
-| ETEngine | http://etengine.local.energytransitionmodel.com:3000 |
-| ETModel | http://etmodel.local.energytransitionmodel.com:3001 |
-| MyETM | http://myetm.local.energytransitionmodel.com:3002 |
-| Collections | http://collections.local.energytransitionmodel.com:3005 |
+| ETEngine | https://etengine.local.energytransitionmodel.com |
+| ETModel | https://etmodel.local.energytransitionmodel.com |
+| MyETM | https://myetm.local.energytransitionmodel.com |
+| Collections | https://collections.local.energytransitionmodel.com |
+
+Every app sits behind one proxy on port 443, the same `nginx-proxy` setup as on beta/pro.
 
 ## 5. Import scenarios (optional)
 
@@ -143,15 +149,17 @@ Desktop's controls.
 
 ## Common problems
 
-- **`bin/up` fails: port already in use.** Something is listening on
-  3000/3001/3002/3005 - either the stack is already up (in which case there's
-  nothing to do), or a native ETM install is running. Stop it and re-run.
+- **`bin/up` fails: port already in use.** Something is listening on 80 or
+  443 - either the stack is already up (in which case there's nothing to do),
+  or a local web server is running. Stop it and re-run.
+- **`bin/up` fails: `.env has app URLs that no longer match`.** The app URLs
+  moved to HTTPS with no port. Change the lines it prints in `.env`, then
+  re-run. Your data is kept.
+- **The browser warns about the certificate.** Run `mkcert -install` and
+  restart the browser. For Firefox, install `nss` first (`brew install nss`).
 - **`.env is missing variable(s)...` warning.** `.env` is created once from
   `.env.example` and never overwritten - a variable added to `.env.example`
   later doesn't reach your `.env` automatically. Add it by hand.
-- **Login or redirect breaks.** Always open apps at
-  `<service>.local.energytransitionmodel.com:<port>`, never bare
-  `localhost:<port>` - the OAuth callback targets the configured host.
 - **`bin/import-scenarios: command not found` / it silently finds no files.**
   Run it via `docker compose exec my-etm ...`, not directly on your host -
   there's no local Ruby install, and your host's `~/Downloads` isn't visible

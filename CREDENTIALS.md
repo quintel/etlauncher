@@ -23,7 +23,7 @@ Open each app at its **own `*.local.energytransitionmodel.com` host**. Add to `/
 
 | App | URL |
 |-----|-----|
-| ETEngine | http://etengine.local.energytransitionmodel.com:3000 |
-| ETModel | http://etmodel.local.energytransitionmodel.com:3001 |
-| MyETM | http://myetm.local.energytransitionmodel.com:3002 |
-| Collections | http://collections.local.energytransitionmodel.com:3005 |
+| ETEngine | https://etengine.local.energytransitionmodel.com |
+| ETModel | https://etmodel.local.energytransitionmodel.com |
+| MyETM | https://myetm.local.energytransitionmodel.com |
+| Collections | https://collections.local.energytransitionmodel.com |

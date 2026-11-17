@@ -3,13 +3,14 @@
 #
 #   cp .env.example .env && ./bin/up
 #
-# Two networks mirror prod: etm-internal (etengine, etmodel, collections,
-# workspace + the shared MySQL `database`; ≈ prod's private `default`) and etm-public
-# (myetm + the version apps + `database`, dual-homed; ≈ prod's external nginx-proxy).
-# MyETM is public-only so the bidirectional OIDC handshake resolves. One `database`
-# container holds every app's DB, mirroring prod's one MySQL per server.
+# Networks match beta: `proxy` (nginx-proxy) terminates TLS for every app on nginx-proxy,
+# and holds the public hostnames so containers reach them through it too. etm-internal
+# carries plain HTTP service-name hops. MyETM is on nginx-proxy only.
 
 name: etlauncher
+
+# The local CA's root, added to each app's trust store at boot. Written by bin/up.
+x-local-ca: &local-ca ./certs/ca:/etc/etlauncher-ca:ro
 
 x-mysql-env: &mysql-env
   DATABASE_HOST: database
@@ -17,6 +18,23 @@ x-mysql-env: &mysql-env
   MYSQL_PASSWORD: ${DB_ROOT_PASSWORD}
 
 services:
+  proxy:
+    image: nginxproxy/nginx-proxy:1.10
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+      - ./vhost.d:/etc/nginx/vhost.d:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      nginx-proxy:
+        aliases:
+          - etengine.local.energytransitionmodel.com
+          - etmodel.local.energytransitionmodel.com
+          - myetm.local.energytransitionmodel.com
+          - collections.local.energytransitionmodel.com
+
   database:
     image: mysql:8.0
     command: --default-authentication-plugin=mysql_native_password
@@ -37,7 +55,7 @@ services:
     networks:
       etm-internal:
         aliases: [database]
-      etm-public:
+      nginx-proxy:
         aliases: [database]
 
   etengine:
@@ -57,13 +75,14 @@ services:
       # Development restricts config.hosts to ETM_HOST_PARENT; also accept the bare
       # service name co-located apps use on etm-internal.
       RAILS_DEVELOPMENT_HOSTS: etengine
-    ports:
-      - "3000:3000"
+      VIRTUAL_HOST: etengine.local.energytransitionmodel.com
+      VIRTUAL_PORT: "3000"
     volumes:
       - ../etengine:/app:cached
       - ../etsource:/etsource:cached
       - ./overrides/etengine.settings.local.yml:/app/config/settings.local.yml:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
+      - *local-ca
       - etengine_bundle:/usr/local/bundle
       - etengine_node_modules:/app/node_modules
       - etengine_packs:/app/public/packs
@@ -80,9 +99,8 @@ services:
         condition: service_healthy
     networks:
       etm-internal:
-        aliases: [etengine, etengine.local.energytransitionmodel.com]
-      etm-public:
-        aliases: [etengine.local.energytransitionmodel.com]
+        aliases: [etengine]
+      nginx-proxy:
 
   etmodel:
     build:
@@ -101,12 +119,13 @@ services:
       # Reach etengine by service name on etm-internal, as the deployed environments do.
       ETE_INTERNAL_URL: http://etengine:3000
       RAILS_DEVELOPMENT_HOSTS: etmodel
-    ports:
-      - "3001:3001"
+      VIRTUAL_HOST: etmodel.local.energytransitionmodel.com
+      VIRTUAL_PORT: "3001"
     volumes:
       - ../etmodel:/app:cached
       - ./overrides/etmodel.settings.local.yml:/app/config/settings.local.yml:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
+      - *local-ca
       - etmodel_bundle:/usr/local/bundle
       - etmodel_node_modules:/app/node_modules
       - etmodel_packs:/app/public/packs
@@ -123,9 +142,8 @@ services:
         condition: service_started
     networks:
       etm-internal:
-        aliases: [etmodel, etmodel.local.energytransitionmodel.com]
-      etm-public:
-        aliases: [etmodel.local.energytransitionmodel.com]
+        aliases: [etmodel]
+      nginx-proxy:
 
   my-etm:
     build:
@@ -144,6 +162,8 @@ services:
       ETMODEL_CLIENT_SECRET: ${ETMODEL_CLIENT_SECRET}
       ETENGINE_CLIENT_ID: ${ETENGINE_CLIENT_ID}
       ETENGINE_CLIENT_SECRET: ${ETENGINE_CLIENT_SECRET}
+      ETMODEL_URL: ${ETMODEL_URL}
+      ETENGINE_URL: ${ETENGINE_URL}
       # Consumed by bin/seed-users (runs inside this container):
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
@@ -151,12 +171,13 @@ services:
       USER_PASSWORD: ${USER_PASSWORD}
       # Consumed by bin/import-scenarios as its default owner:
       IMPORT_SCENARIOS_OWNER: ${ADMIN_EMAIL}
-    ports:
-      - "3002:3002"
+      VIRTUAL_HOST: myetm.local.energytransitionmodel.com
+      VIRTUAL_PORT: "3002"
     volumes:
       - ../my-etm:/app:cached
       - ./overrides/myetm.settings.local.yml:/app/config/settings.local.yml:ro
       - ./bin/app-boot.sh:/usr/local/bin/app-boot.sh:ro
+      - *local-ca
       - myetm_bundle:/usr/local/bundle
       - myetm_cache:/app/tmp/cache
       - myetm_storage:/app/storage
@@ -168,8 +189,8 @@ services:
       database:
         condition: service_healthy
     networks:
-      etm-public:
-        aliases: [myetm, myetm.local.energytransitionmodel.com]
+      nginx-proxy:
+        aliases: [myetm]
 
   collections:
     image: node:20-alpine
@@ -185,11 +206,13 @@ services:
       # Server-side only; the API routes prefer these over the NEXT_PUBLIC_ values above.
       ETENGINE_INTERNAL_URL: http://etengine:3000
       ETMODEL_INTERNAL_URL: http://etmodel:3001
-    ports:
-      - "3005:3005"
+      NODE_EXTRA_CA_CERTS: /etc/etlauncher-ca/rootCA.pem
+      VIRTUAL_HOST: collections.local.energytransitionmodel.com
+      VIRTUAL_PORT: "3005"
     volumes:
       - ../multi-year-charts:/app:cached
       - collections_node_modules:/app/node_modules
+      - *local-ca
     depends_on:
       my-etm:
         condition: service_started
@@ -197,9 +220,8 @@ services:
         condition: service_started
     networks:
       etm-internal:
-        aliases: [collections, collections.local.energytransitionmodel.com]
-      etm-public:
-        aliases: [collections.local.energytransitionmodel.com]
+        aliases: [collections]
+      nginx-proxy:
 
   # Managed dev shell — the dev-container target. Toolchain only; run app
   # commands against the services (e.g. `docker compose exec etengine bin/rails c`).
@@ -211,12 +233,12 @@ services:
       - ..:/workspace:cached                 # parent dir = all sibling repos + ETLauncher
     networks:
       - etm-internal
-      - etm-public
+      - nginx-proxy
 
 networks:
   etm-internal:
     driver: bridge
-  etm-public:
+  nginx-proxy:
     driver: bridge
 
 volumes:
