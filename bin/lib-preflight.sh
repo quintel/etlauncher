@@ -61,6 +61,42 @@ require_hosts_entries() {
   exit 1
 }
 
+# A build that runs out of disk fails part way, with unclear errors - clarify.
+require_free_docker_disk() {
+  local needed_gb=10 free_gb
+  free_gb="$(docker run --rm -q alpine:3 df -Pk / | awk 'NR == 2 { print int($4 / 1048576) }')"
+  [ "$free_gb" -ge "$needed_gb" ] && return 0
+  echo "Docker has ${free_gb} GB of disk free. bin/up needs about ${needed_gb} GB to build." >&2
+  echo "Clear the build cache with 'docker builder prune', or" >&2
+  echo "raise the disk size in Docker Desktop, Settings, Resources. Then re-run." >&2
+  exit 1
+}
+
+# A stable stack's apps must be on its Version's line: HEAD left master at the commit
+# origin/<branch> did. The branch and feature branches off it pass. Master and other
+# Versions' branches fail.
+require_version_branches() {
+  local branch="$1" repo
+  for repo in etengine etmodel multi-year-charts etsource; do
+    require_version_branch "$repo" "$branch"
+  done
+}
+
+require_version_branch() {
+  local repo="$1" branch="$2" base fork current
+  if ! git -C "../$repo" rev-parse -q --verify "origin/$branch^{commit}" >/dev/null; then
+    echo "$repo has no origin/$branch. Run 'git -C ../$repo fetch origin', then re-run." >&2
+    exit 1
+  fi
+  base="$(git -C "../$repo" merge-base HEAD origin/master)"
+  fork="$(git -C "../$repo" merge-base "origin/$branch" origin/master)"
+  [ "$base" = "$fork" ] && return 0
+  current="$(git -C "../$repo" branch --show-current)"
+  echo "$repo is on ${current:-a detached HEAD}, not the $branch line." >&2
+  echo "Run 'git -C ../$repo checkout $branch', then re-run." >&2
+  exit 1
+}
+
 # Named so nginx-proxy matches it to every VIRTUAL_HOST. Reissued if it stops verifying.
 issue_local_certificate() {
   local cert="certs/$LOCAL_DOMAIN.crt"

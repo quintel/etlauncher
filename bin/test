@@ -10,6 +10,7 @@
 # never switches to test on its own. Collections is a Next.js app and runs jest instead.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source ./bin/lib-docker.sh
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <etengine|etmodel|my-etm|collections> [test args...]" >&2
@@ -18,12 +19,24 @@ fi
 
 service="$1"; shift
 
+# A new stack's volume only holds the _development databases, and Rails 7.1 fails on a
+# missing test database rather than creating it.
+ensure_test_database() {
+  local db="${service//-/_}_test"
+  set -a; . ./.env; set +a
+  docker compose exec -T database mysql -uroot -p"$DB_ROOT_PASSWORD" -N \
+    -e "SHOW DATABASES LIKE '$db'" 2>/dev/null | grep -qx "$db" && return 0
+  echo "→ Creating $db..."
+  docker compose exec -e SSO_COOKIE_SUFFIX= "$service" bundle exec rails db:test:prepare
+}
+
 case "$service" in
   collections)
     # CI=true stops jest watching, which an exec session cannot drive.
     docker compose exec -e CI=true "$service" yarn jest "$@"
     ;;
   etengine|etmodel|my-etm)
+    ensure_test_database
     docker compose exec -e RAILS_ENV=test -e SSO_COOKIE_SUFFIX= "$service" bundle exec rspec "$@"
     ;;
   *)
