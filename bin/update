@@ -29,6 +29,7 @@ issue_local_certificate
 # Acts on the stack bin/up last started. Report disk usage, then clean up that stack's own
 # leftovers.
 source ./bin/lib-docker.sh
+[ "$VERSION_TAG" != "latest" ] && require_version_branches "$STACK_BRANCH"
 echo "→ Updating the $VERSION_TAG stack ($COMPOSE_PROJECT_NAME)..."
 report_docker_usage
 prune_etlauncher_resources

@@ -37,13 +37,10 @@ export COMPOSE_FILE
 
 source ./bin/lib-preflight.sh
 
-# 1-2. mkcert and its local CA installed; ports 80 and 443 free once any other ETLauncher
-#      stack is stopped. Fail fast, before the multi-minute build below.
+# 1. mkcert and its local CA installed. Fail fast, before the multi-minute build below.
 require_mkcert
-stop_other_stacks
-require_free_ports
 
-# 3. Environment file. Never overwritten once created, so a variable added to
+# 2. Environment file. Never overwritten once created, so a variable added to
 #    .env.example later can silently go missing from an existing .env — warn,
 #    don't guess: the value might be intentionally different (e.g. a branch in
 #    progress), so this never auto-merges. A stale app URL aborts instead.
@@ -63,10 +60,10 @@ else
   require_current_env_urls
 fi
 
-# 4. Every app hostname must resolve to this machine.
+# 3. Every app hostname must resolve to this machine.
 require_hosts_entries
 
-# 5. Sibling checkouts must exist next to ETLauncher, and a stable stack's must be on
+# 4. Sibling checkouts must exist next to ETLauncher, and a stable stack's must be on
 #    its Version's line. MyETM stays on master.
 missing=()
 for repo in etengine etmodel multi-year-charts my-etm etsource; do
@@ -79,6 +76,11 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 [ "$VERSION_TAG" != "latest" ] && require_version_branches "$STACK_BRANCH"
 require_free_docker_disk
+
+# 5. Ports 80 and 443 free once any other ETLauncher stack is stopped. Last, so a failed
+#    check above leaves the running stack alone.
+stop_other_stacks
+require_free_ports
 
 # Every preflight passed, so bin/update and the rest now follow this stack.
 record_stack

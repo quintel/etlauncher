@@ -146,7 +146,13 @@ A stable stack takes about 10 GB more disk, so give Docker at least 60 GB.
   and data are kept.
 - **The scripts follow along.** `bin/update`, `bin/test`, `bin/db-dump` and
   the rest act on the stack `bin/up` last started. A bare `bin/up` returns
-  to latest, with its data as you left it.
+  to latest, with its data as you left it. `bin/db-restore` only picks up
+  dumps of the active stack.
+- **Start a stack with `bin/up`, not Docker Desktop.** Docker Desktop lists
+  each stack, but its Start button ignores the active stack. So does "Reopen
+  in Container" in the dev container. Starting `etlauncher` there runs latest
+  on whatever branches are checked out, which breaks on a stable Version's
+  code.
 - **Commands by hand need the project specified.** For example
   `docker compose -p etlauncher-2025-01 exec etengine bin/rails c`.
 

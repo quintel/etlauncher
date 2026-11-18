@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Restore the local database from a dump written by ./bin/db-dump. With no args it
-# restores the LATEST dump; pass a file to be specific.
+# restores the active stack's LATEST dump; pass a file to be specific.
 #
-#   ./bin/db-restore                                      # latest dump
-#   ./bin/db-restore dumps/database-20260629-120000.sql
+#   ./bin/db-restore                                                 # latest dump
+#   ./bin/db-restore dumps/etlauncher-database-20260629-120000.sql
 #
 # Restoring overwrites the current contents of the dumped databases (the dump uses
 # CREATE DATABASE ... semantics). It does NOT touch the volume.
@@ -23,7 +23,7 @@ restore_file() {
 }
 
 latest_for() {
-  ls -1t "dumps/$1-"*.sql 2>/dev/null | head -1 || true
+  ls -1t "dumps/${COMPOSE_PROJECT_NAME}-$1-"*.sql 2>/dev/null | head -1 || true
 }
 
 if [ "$#" -eq 1 ]; then
@@ -32,10 +32,10 @@ if [ "$#" -eq 1 ]; then
 fi
 
 if [ "$#" -ne 0 ]; then
-  echo "Usage: $0 [<dump-file>]   (no args = latest dump in dumps/)" >&2
+  echo "Usage: $0 [<dump-file>]   (no args = latest $COMPOSE_PROJECT_NAME dump in dumps/)" >&2
   exit 1
 fi
 
 file="$(latest_for database)"
-[ -z "$file" ] && { echo "No dump in dumps/ — run ./bin/db-dump first." >&2; exit 1; }
+[ -z "$file" ] && { echo "No $COMPOSE_PROJECT_NAME dump in dumps/ — run ./bin/db-dump first." >&2; exit 1; }
 restore_file database "$file"

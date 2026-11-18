@@ -72,8 +72,9 @@ require_free_docker_disk() {
   exit 1
 }
 
-# A stable stack's apps must be on its Version's line. That is the branch itself, or a
-# feature branch sharing a commit with origin/<branch> that origin/master lacks.
+# A stable stack's apps must be on its Version's line: HEAD left master at the commit
+# origin/<branch> did. The branch and feature branches off it pass. Master and other
+# Versions' branches fail.
 require_version_branches() {
   local branch="$1" repo
   for repo in etengine etmodel multi-year-charts etsource; do
@@ -82,15 +83,15 @@ require_version_branches() {
 }
 
 require_version_branch() {
-  local repo="$1" branch="$2" base current
+  local repo="$1" branch="$2" base fork current
   if ! git -C "../$repo" rev-parse -q --verify "origin/$branch^{commit}" >/dev/null; then
     echo "$repo has no origin/$branch. Run 'git -C ../$repo fetch origin', then re-run." >&2
     exit 1
   fi
+  base="$(git -C "../$repo" merge-base HEAD origin/master)"
+  fork="$(git -C "../$repo" merge-base "origin/$branch" origin/master)"
+  [ "$base" = "$fork" ] && return 0
   current="$(git -C "../$repo" branch --show-current)"
-  [ "$current" = "$branch" ] && return 0
-  base="$(git -C "../$repo" merge-base HEAD "origin/$branch")"
-  git -C "../$repo" merge-base --is-ancestor "$base" origin/master || return 0
   echo "$repo is on ${current:-a detached HEAD}, not the $branch line." >&2
   echo "Run 'git -C ../$repo checkout $branch', then re-run." >&2
   exit 1

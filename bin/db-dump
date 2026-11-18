@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Snapshot the local database to git-ignored dumps/ so you can experiment freely
 # and roll back WITHOUT destroying the Docker volume.
-#   ./bin/db-dump            # writes dumps/database-<timestamp>.sql
+#   ./bin/db-dump            # writes dumps/<project>-database-<timestamp>.sql
 #
 # Restore with ./bin/db-restore.
 set -euo pipefail
@@ -14,7 +14,7 @@ ts="$(date +%Y%m%d-%H%M%S)"
 
 dump_server() {
   local server="$1"
-  local out="dumps/${server}-${ts}.sql"
+  local out="dumps/${COMPOSE_PROJECT_NAME}-${server}-${ts}.sql"
   # Non-system databases only (skip mysql/sys/schema internals so restore is safe).
   local dbs
   dbs="$(docker compose exec -T "$server" \

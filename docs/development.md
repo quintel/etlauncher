@@ -106,11 +106,15 @@ data work), use the dump/restore helpers - they write to the git-ignored
 `dumps/`:
 
 ```sh
-./bin/db-dump            # dumps all databases to dumps/database-<timestamp>.sql
+./bin/db-dump            # dumps all databases to dumps/<project>-database-<timestamp>.sql
 # ... experiment ...
-./bin/db-restore         # restores the latest dump
-./bin/db-restore dumps/database-20260629-120000.sql   # or a specific file
+./bin/db-restore         # restores the active stack's latest dump
+./bin/db-restore dumps/etlauncher-database-20260629-120000.sql   # or a specific file
 ```
+
+Each dump is named after its stack's project, and a bare `./bin/db-restore` only
+picks up the active stack's dumps. Older dumps named `dumps/database-*.sql` are
+not picked up. Restore one by passing its path.
 
 To start completely clean (destroy data, rebuild, reseed):
 `docker compose down -v && ./bin/up`.
