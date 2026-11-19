@@ -27,6 +27,7 @@ services:
     volumes:
       - ./certs:/etc/nginx/certs:ro
       - ./vhost.d:/etc/nginx/vhost.d:ro
+      - ./conf.d/00-api-gateway.conf:/etc/nginx/conf.d/00-api-gateway.conf:ro
       - /var/run/docker.sock:/tmp/docker.sock:ro
     networks:
       nginx-proxy:
