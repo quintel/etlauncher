@@ -3,7 +3,7 @@ include /etc/nginx/vhost.d/default;
 
 # MyETM's API gateway. Rails gives a verdict on each call under a Scenario that MyETM does not serve
 # itself, and nginx passes the call through to the Scenario's engine, so no MyETM worker waits on the engine.
-location ~ ^/api/v4/saved_scenarios/\d+/(?!(?:users|discard|restore)(?:[/.]|$)) {
+location ~ ^/api/v4/saved_scenarios/\d+/(?!(?:users|snapshots|discard|restore)(?:[/.]|$)) {
     limit_conn api_gateway 4;
     limit_conn api_gateway_address 16;
     limit_conn_status 429;
@@ -57,6 +57,7 @@ location = /api/v4/relay/verdict {
     proxy_pass http://myetm.local.energytransitionmodel.com;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
+    proxy_set_header Content-Type "";
     proxy_set_header Connection "";
     proxy_set_header Host $host;
     proxy_set_header X-Original-URI $request_uri;
@@ -71,6 +72,7 @@ location @api_gateway_refusal {
     proxy_pass http://myetm.local.energytransitionmodel.com;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
+    proxy_set_header Content-Type "";
     proxy_set_header Connection "";
     proxy_set_header Authorization "";
     proxy_set_header Host $host;
