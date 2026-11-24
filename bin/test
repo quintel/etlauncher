@@ -27,7 +27,7 @@ ensure_test_database() {
   docker compose exec -T database mysql -uroot -p"$DB_ROOT_PASSWORD" -N \
     -e "SHOW DATABASES LIKE '$db'" 2>/dev/null | grep -qx "$db" && return 0
   echo "→ Creating $db..."
-  docker compose exec -e SSO_COOKIE_SUFFIX= "$service" bundle exec rails db:test:prepare
+  docker compose exec -e SSO_COOKIE_SUFFIX= -e SCENARIO_ACCESS_GRANTS_ONLY= "$service" bundle exec rails db:test:prepare
 }
 
 case "$service" in
@@ -37,7 +37,7 @@ case "$service" in
     ;;
   etengine|etmodel|my-etm)
     ensure_test_database
-    docker compose exec -e RAILS_ENV=test -e SSO_COOKIE_SUFFIX= "$service" bundle exec rspec "$@"
+    docker compose exec -e RAILS_ENV=test -e SSO_COOKIE_SUFFIX= -e SCENARIO_ACCESS_GRANTS_ONLY= "$service" bundle exec rspec "$@"
     ;;
   *)
     echo "Unknown service '$service'. Expected etengine, etmodel, my-etm or collections." >&2
