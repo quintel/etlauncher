@@ -74,6 +74,7 @@ services:
       ETM_HOST_PARENT: ${ETM_HOST_PARENT}
       SSO_COOKIE_SUFFIX: ${SSO_COOKIE_SUFFIX:-}
       ETSOURCE_LIVE_RELOAD_FORCE_POLLING: "true"
+      SCENARIO_ACCESS_GRANTS_ONLY: "true"
       # Development restricts config.hosts to ETM_HOST_PARENT; also accept the bare
       # service name co-located apps use on etm-internal.
       RAILS_DEVELOPMENT_HOSTS: etengine
